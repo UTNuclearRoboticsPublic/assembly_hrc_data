@@ -1,7 +1,7 @@
 # assembly_hrc_data
 Labelled data from HRC experiments to be used for semantic hand segmentation.
 
-!(samplevisual.png)
+![sample](samplevisual.png)
 
 
 ## Converting LabelMe Annotations to Trainable Dataset
