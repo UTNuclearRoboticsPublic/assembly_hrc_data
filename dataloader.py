@@ -15,8 +15,8 @@ transform = transforms.Compose ({
 class AssemblyDataset(Dataset):
     def __init__(self):
         # data loading
-        self.image_dir = r'./Labelled/train/data_dataset_voc/JPEGImages'
-        self.label_dir = r'./Labelled/train/data_dataset_voc/SegmentationClassPNG'
+        self.image_dir = r'./data_dataset_voc/JPEGImages'
+        self.label_dir = r'./data_dataset_voc/SegmentationClassPNG'
 
         self.images = os.listdir(self.image_dir)
         self.masks = os.listdir(self.label_dir)
@@ -51,6 +51,8 @@ class AssemblyDataset(Dataset):
         return len(self.images)
 
 dataset = AssemblyDataset()
+
+## Dataloader. Adjust for desired train and val sets
 dataloader = DataLoader(dataset=dataset, batch_size = 2, shuffle = True)
 
 ## see if images and masks are loaded correctly
