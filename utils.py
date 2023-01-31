@@ -2,6 +2,9 @@ import torch
 import torchvision
 from torch.utils.data import DataLoader
 from dataloader import AssemblyDataset
+from torch import nn
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -38,11 +41,28 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
         #     preds, f"{folder}/pred_{idx}.png"
         # )
 
-        # with torch.no_grad():
+
+        with torch.no_grad():
+            softmax = nn.Softmax(dim=1)
+            # preds = softmax(model(x))
+            # preds = (preds>0.5).float()
+            outputs = model(x)
+            probs = torch.softmax(outputs, dim=1)
+            preds = torch.argmax(probs, dim=1)
+
+        """ Shows distribution of the predictions"""
+        # print(f"Predictions are {torch.unique(preds)}")
+        print(f"Predictions are {torch.unique(preds.flatten())}")
+
+        folder = "saved_images/predictions/"
+
         torchvision.utils.save_image(
-            model(x), f"{folder}/pred_{idx}.png"
+            preds, f"{folder}/pred_{idx}.png"
         )
 
-        # print(y.shape)
-    model.train()
+        for j in range(x.shape[0]):
+            plt.imshow(np.transpose(y[j], (1, 2, 0)))
+            folder = f"saved_images/ground_truth/image{j}.jpg"
+            plt.savefig(folder)
 
+    model.train()

@@ -29,12 +29,18 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data, targets = batch
         data = data.to(device=DEVICE)
         targets = targets.to(device=DEVICE)
+        targets = targets.permute(0, 2, 3, 1)
+        targets = targets[:, :, :, 0]
+        print(torch.unique(targets))
+        print(f"the shape of the targets is {targets.shape}")
         # for target in len(targets):
         #     target = torch.argmax(target, dim=1)
         # forward
         with torch.cuda.amp.autocast():
             predictions = model(data)
-            loss = loss_fn(predictions, targets)
+            # print(f"Shape of targets {targets.shape}")
+            # print(f"shape of predictions {predictions.shape}")
+            loss = loss_fn(predictions, targets.long())
         # backward
         optimizer.zero_grad()
         scaler.scale(loss).backward()
