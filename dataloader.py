@@ -10,11 +10,11 @@ import PIL
 import os
 import matplotlib.pyplot as plt
 
-transform = transforms.Compose ({
+transform = transforms.Compose ([
     # transforms.ToPILImage(),
+    transforms.ToTensor(),
     transforms.Resize((224, 224)),
-    transforms.ToTensor()
-})
+])
 
 class AssemblyDataset(Dataset):
     def __init__(self, idx1, idx2):
@@ -55,6 +55,7 @@ class AssemblyDataset(Dataset):
         mask_path = os.path.join(self.label_dir, self.masks[index])
 
         image = Image.open(image_path)
+        image = image.convert('RGB')
         mask = Image.open(mask_path)
 
         # image = np.asarray(Image.open(image_path))
@@ -63,6 +64,7 @@ class AssemblyDataset(Dataset):
         if self.transform:
             image = self.transform(image)
             mask = self.transform(mask)
+
 
         # print("Image: ", torch.max(image))
         # print("Mask: ", mask.shape)
@@ -77,7 +79,7 @@ class AssemblyDataset(Dataset):
     
 # dataset = AssemblyDataset(1, 5)
 
-# # # ## Dataloader. Adjust for desired train and val sets
+# # # # ## Dataloader. Adjust for desired train and val sets
 # dataloader = DataLoader(dataset=dataset, batch_size = 2, shuffle = True)
 
 # ## see if images and masks are loaded correctly
@@ -85,6 +87,8 @@ class AssemblyDataset(Dataset):
 # for i, (images, masks) in enumerate(dataloader):
 #     for j in range(images.shape[0]):
 #         print(f"unique values: {np.asarray(masks[j].unique())}")
+#         print(f"shape of image {images[j].shape}")
+#         plt.imshow(images[j].permute(1, 2, 0))
 #         plt.imshow(np.transpose(masks[j], (1, 2, 0)), alpha=0.6)
 #         plt.savefig("image.jpg")
 #         print(np.transpose(masks[j], (1, 2, 0)).dtype)

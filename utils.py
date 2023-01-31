@@ -43,12 +43,12 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
 
 
         with torch.no_grad():
-            softmax = nn.Softmax(dim=1)
+            # softmax = nn.Softmax(dim=1)
             # preds = softmax(model(x))
             # preds = (preds>0.5).float()
             outputs = model(x)
-            probs = torch.softmax(outputs, dim=1)
-            preds = torch.argmax(probs, dim=1)
+            # probs = torch.softmax(outputs, dim=1)
+            preds = torch.argmax(outputs, dim=0).detach().cpu()
 
         """ Shows distribution of the predictions"""
         # print(f"Predictions are {torch.unique(preds)}")
@@ -56,13 +56,21 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
 
         folder = "saved_images/predictions/"
 
-        torchvision.utils.save_image(
-            preds, f"{folder}/pred_{idx}.png"
-        )
-
-        for j in range(x.shape[0]):
-            plt.imshow(np.transpose(y[j], (1, 2, 0)))
-            folder = f"saved_images/ground_truth/image{j}.jpg"
-            plt.savefig(folder)
-
+        # torchvision.utils.save_image(
+        #     preds, f"{folder}/pred_{idx}.png"
+        # )
+        print("hello")
+        print(f"y shape {y.shape}")
+        print(f"preds shape {preds.shape}")
+        print(f"preds 1 shape {preds[0].shape} and unique {torch.unique(preds[0])}")
+        # img = TF.to_pil_image(preds)
+        # for j in range(x.shape[0]):
+        #     print(torch.unique(preds[1]))
+        #     plt.imshow(preds[0])
+        #     # plt.imshow(np.transpose(y[j], (1, 2, 0)))
+        #     folder = f"saved_images/ground_truth/image{j}.jpg"
+        #     plt.savefig(folder)
+        #     plt.show()
+        plt.imshow(preds[0])
+        plt.show()
     model.train()

@@ -33,6 +33,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         targets = targets[:, :, :, 0]
         print(torch.unique(targets))
         print(f"the shape of the targets is {targets.shape}")
+        print(f"the shape of the data is {data.shape}")
         # for target in len(targets):
         #     target = torch.argmax(target, dim=1)
         # forward
@@ -50,7 +51,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         loop.set_postfix(loss=loss.item())
 
 def main():
-    model = UNET(in_channels=4, out_channels=4).to(DEVICE)
+    model = UNET(in_channels=3, out_channels=3).to(DEVICE)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
