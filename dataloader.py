@@ -11,7 +11,6 @@ import os
 import matplotlib.pyplot as plt
 
 transform = transforms.Compose ([
-    # transforms.ToPILImage(),
     transforms.ToTensor(),
     transforms.Resize((224, 224)),
 ])
@@ -27,23 +26,13 @@ class AssemblyDataset(Dataset):
 
         self.transform = transform
 
-        # self.mapping = {
-        #     '_background_': 0,
-        #     'left_Hand': 1,
-        #     'Right_Hand': 2
-        # }
-
         self.images.sort()
         self.masks.sort()
 
         self.images = self.images[idx1:idx2]
-        print(len(self.images))
+        self.masks = self.masks[idx1:idx2]
 
-        # self.images = self.images[idx1 : idx2]
-        # self.masks = self.images[idx1 : idx2]
-
-        # print(self.images)
-        # print(self.masks)
+        ### you can see the 0, 1, 2, 3 labels in the data here
         # lbl = np.asarray(PIL.Image.open(os.path.join(self.label_dir, self.masks[1])))
         # print(np.unique(lbl))
         # print(lbl.shape)
@@ -57,25 +46,19 @@ class AssemblyDataset(Dataset):
         image = Image.open(image_path)
         image = image.convert('RGB')
         mask = Image.open(mask_path)
-
-        # image = np.asarray(Image.open(image_path))
-        # mask = np.asarray(Image.open(mask_path))
+        mask = mask.convert('RGB')
 
         if self.transform:
             image = self.transform(image)
             mask = self.transform(mask)
 
-
-        # print("Image: ", torch.max(image))
-        # print("Mask: ", mask.shape)
-        # print(torch.unique(mask))
-        # print(torch.max(torch.from_numpy(np.array(mask))))
-
         return image, mask
   
     def __len__(self):
-        #len(dataset)
         return len(self.images)
+    
+
+"""Uncomment to test and view samples from dataset"""
     
 # dataset = AssemblyDataset(1, 5)
 

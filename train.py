@@ -1,6 +1,6 @@
 import torch
 import albumentations as A
-from albumentations.pytorch import ToTensorV2
+# from albumentations.pytorch import ToTensorV2
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
@@ -29,18 +29,23 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data, targets = batch
         data = data.to(device=DEVICE)
         targets = targets.to(device=DEVICE)
+        print(f"shape is {targets.shape}") #checking shape
         targets = targets.permute(0, 2, 3, 1)
+        print(f"unique targets are {torch.unique(targets)}") #checking shape
         targets = targets[:, :, :, 0]
         print(torch.unique(targets))
-        print(f"the shape of the targets is {targets.shape}")
-        print(f"the shape of the data is {data.shape}")
-        # for target in len(targets):
-        #     target = torch.argmax(target, dim=1)
-        # forward
+        
+        # Checking shape when fixing tensor errors
+        # print(f"the shape of the targets is {targets.shape}")
+        # print(f"the shape of the data is {data.shape}")
+
         with torch.cuda.amp.autocast():
             predictions = model(data)
+
+            # checking size when fixing tensor shape errors
             # print(f"Shape of targets {targets.shape}")
             # print(f"shape of predictions {predictions.shape}")
+
             loss = loss_fn(predictions, targets.long())
         # backward
         optimizer.zero_grad()

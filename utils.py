@@ -1,3 +1,5 @@
+"""utils used in train.py"""
+
 import torch
 import torchvision
 from torch.utils.data import DataLoader
@@ -18,10 +20,10 @@ def load_checkpoint(checkpoint, model):
     model.load_state_dict(checkpoint["state_dict"])
 
 def get_loaders(batch_size):
-    train_ds = AssemblyDataset(0, 7)
+    train_ds = AssemblyDataset(0, 3)
     train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
 
-    val_ds = AssemblyDataset(0, 7)
+    val_ds = AssemblyDataset(0, 3)
     val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
     return train_loader, val_loader
@@ -30,39 +32,28 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
-        # print(x.shape)
-        # with torch.no_grad():
-        #     preds = torch.sigmoid(model(x))
-        #     preds = (preds>0.5).float()
-        # y = torch.movedim(y, 3, 1)
-        # torchvision.utils.save_image(y.float(), f"{folder}{idx}.png")
-
-        # torchvision.utils.save_image(
-        #     preds, f"{folder}/pred_{idx}.png"
-        # )
-
 
         with torch.no_grad():
-            # softmax = nn.Softmax(dim=1)
-            # preds = softmax(model(x))
-            # preds = (preds>0.5).float()
             outputs = model(x)
-            # probs = torch.softmax(outputs, dim=1)
-            preds = torch.argmax(outputs, dim=0).detach().cpu()
+            preds = torch.argmax(outputs, dim=1).detach().cpu()
 
         """ Shows distribution of the predictions"""
-        # print(f"Predictions are {torch.unique(preds)}")
-        print(f"Predictions are {torch.unique(preds.flatten())}")
+        print(f"Unique redictions are {torch.unique(preds.flatten())}")
 
         folder = "saved_images/predictions/"
 
+        # to save prediciton image
         # torchvision.utils.save_image(
         #     preds, f"{folder}/pred_{idx}.png"
         # )
-        print("hello")
-        print(f"y shape {y.shape}")
-        print(f"preds shape {preds.shape}")
-        print(f"preds 1 shape {preds[0].shape} and unique {torch.unique(preds[0])}")
+
+        """Testing shape size for fitting"""
+        # print("hello")
+        # print(f"y shape {torch.unique(y)}")
+        # print(f"preds shape {preds.shape}")
+        # print(f"preds 1 shape {preds[0].shape} and unique {torch.unique(preds[0])}")
+
+        """save ground truth"""
         # img = TF.to_pil_image(preds)
         # for j in range(x.shape[0]):
         #     print(torch.unique(preds[1]))
