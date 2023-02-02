@@ -11,8 +11,13 @@ import os
 import matplotlib.pyplot as plt
 
 transform = transforms.Compose ([
-    transforms.ToTensor(),
-    transforms.Resize((224, 224)),
+    transforms.Resize(size=(224, 224), interpolation=PIL.Image.NEAREST),
+    # transforms.ToTensor()
+])
+
+transform2 = transforms.Compose ([
+    transforms.Resize(size=(224, 224), interpolation=PIL.Image.NEAREST),
+    transforms.ToTensor()
 ])
 
 class AssemblyDataset(Dataset):
@@ -25,6 +30,7 @@ class AssemblyDataset(Dataset):
         self.masks = os.listdir(self.label_dir)
 
         self.transform = transform
+        self.transform2 = transform2
 
         self.images.sort()
         self.masks.sort()
@@ -46,11 +52,29 @@ class AssemblyDataset(Dataset):
         image = Image.open(image_path)
         image = image.convert('RGB')
         mask = Image.open(mask_path)
-        mask = mask.convert('RGB')
+
+        # image = np.array(np.asarray(Image.open(image_path)))
+        # # image = image.convert('RGB')
+        # mask = np.array(np.asarray(Image.open(mask_path)))
+        # # mask = mask.convert('RGB')
+        print(f"Image before transform unique: {np.unique(np.array(np.asarray(image)))}")
+        print(f"Mask before transform unique: {np.unique(np.array(np.asarray(mask)))}")
+        # print(f"Image before transform shape: {image.shape}")
+        # print(f"Mask before transform shape: {mask.shape}")
 
         if self.transform:
-            image = self.transform(image)
+            image = self.transform2(image)
             mask = self.transform(mask)
+
+        # image = transforms.ToTensor(image)
+        # image = torch.from_numpy(np.array(np.asarray(image)))
+        mask = torch.from_numpy(np.array(np.asarray(mask)))
+
+        print(f"Image after transform unique: {torch.unique(image)}")
+        print(f"Mask after transform unique: {torch.unique(mask)}")
+
+        print(f"Image after transform shape: {image.shape}")
+        print(f"Mask after transform shape: {mask.shape}")
 
         return image, mask
   
@@ -60,23 +84,24 @@ class AssemblyDataset(Dataset):
 
 """Uncomment to test and view samples from dataset"""
     
-# dataset = AssemblyDataset(1, 5)
+# dataset = AssemblyDataset(0, 2)
 
 # # # # ## Dataloader. Adjust for desired train and val sets
 # dataloader = DataLoader(dataset=dataset, batch_size = 2, shuffle = True)
 
-# ## see if images and masks are loaded correctly
-# ## this adds masks on top of the image
+# # see if images and masks are loaded correctly
+# # this adds masks on top of the image
 # for i, (images, masks) in enumerate(dataloader):
 #     for j in range(images.shape[0]):
 #         print(f"unique values: {np.asarray(masks[j].unique())}")
 #         print(f"shape of image {images[j].shape}")
-#         plt.imshow(images[j].permute(1, 2, 0))
-#         plt.imshow(np.transpose(masks[j], (1, 2, 0)), alpha=0.6)
+#         # plt.imshow(images[j].permute(1, 2, 0))
+#         plt.imshow(np.transpose(images[j])) # , (1, 2, 0)
 #         plt.savefig("image.jpg")
-#         print(np.transpose(masks[j], (1, 2, 0)).dtype)
-#         folder="saved_images/"
+#         print(np.transpose(masks[j]).dtype)  # , (1, 2, 0)
+#         folder="saved_images/" 
 #         # torchvision.utils.save_image(np.transpose(masks[j], (1, 2, 0)).astype(np.uint8), f"{folder}{j}.png")
 #         # image = Image.fromarray(np.uint(np.transpose(masks[j], (1, 2, 0))))
-#         image = np.transpose(masks[j], (1, 2, 0))
+#         plt.imshow(np.transpose(masks[j]), alpha=0.6)
+#         image = np.transpose(masks[j]) # , (1, 2, 0)
 #         plt.show()

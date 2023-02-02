@@ -20,10 +20,10 @@ def load_checkpoint(checkpoint, model):
     model.load_state_dict(checkpoint["state_dict"])
 
 def get_loaders(batch_size):
-    train_ds = AssemblyDataset(0, 3)
+    train_ds = AssemblyDataset(0, 2)
     train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
 
-    val_ds = AssemblyDataset(0, 3)
+    val_ds = AssemblyDataset(0, 2)
     val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
     return train_loader, val_loader
@@ -35,10 +35,11 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
 
         with torch.no_grad():
             outputs = model(x)
+            print(f"the shape of outputs is {outputs.shape}")
             preds = torch.argmax(outputs, dim=1).detach().cpu()
 
         """ Shows distribution of the predictions"""
-        print(f"Unique redictions are {torch.unique(preds.flatten())}")
+        print(f"Unique predictions are {torch.unique(preds)}")
 
         folder = "saved_images/predictions/"
 

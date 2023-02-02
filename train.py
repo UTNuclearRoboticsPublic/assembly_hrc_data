@@ -30,11 +30,19 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data = data.to(device=DEVICE)
         targets = targets.to(device=DEVICE)
         print(f"shape is {targets.shape}") #checking shape
-        targets = targets.permute(0, 2, 3, 1)
+        # data = data.permute(0, 3, 1, 2)
+        # targets = targets.permute(0, 3, 1, 2)
+        # targets = torch.argmax(targets, dim=1)
+
         print(f"unique targets are {torch.unique(targets)}") #checking shape
-        targets = targets[:, :, :, 0]
-        print(torch.unique(targets))
-        
+        # targets = targets[:, :, :, 0]
+
+
+        # targets = targets.squeeze(1)
+
+        # targets = torch.argmax(targets, dim=1)
+        # targets = targets.squeeze()
+
         # Checking shape when fixing tensor errors
         # print(f"the shape of the targets is {targets.shape}")
         # print(f"the shape of the data is {data.shape}")
@@ -43,8 +51,15 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
             predictions = model(data)
 
             # checking size when fixing tensor shape errors
-            # print(f"Shape of targets {targets.shape}")
-            # print(f"shape of predictions {predictions.shape}")
+            print(f"Shape of targets {(targets.shape)}") # 2 (batch), 224, 224
+            ## this should output the class indixes, but it is not
+
+            ## the target should be a LongTensor with the shape [batch_size, height, width] 
+            ## and contain the class indices for each pixel location in the range [0, nb_classes-1] 
+
+            print(f"shape of predictions {predictions.shape}") # 2 (batch), 3, 224, 224 (this is good)
+            print(f"shape of predictions {torch.unique(predictions)}")
+
 
             loss = loss_fn(predictions, targets.long())
         # backward
@@ -69,6 +84,7 @@ def main():
 
     for epoch in range(NUM_EPOCHS):
         if LOAD_MODEL is not True:
+            model.train()
             train_fn(train_loader, model, optimizer, loss_fn, scaler)
 
             # save model
