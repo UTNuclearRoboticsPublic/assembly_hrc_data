@@ -5,6 +5,7 @@ from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from model import UNET
+import numpy as np
 from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs)
 
 # Hyperparameters etc.
@@ -29,6 +30,20 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data, targets = batch
         data = data.to(device=DEVICE)
         targets = targets.to(device=DEVICE)
+
+        weight1 = torch.sum(targets==0)
+        weight2 = torch.sum(targets==1)
+        weight3 = torch.sum(targets==2)
+
+        # weights = np.array([weight1, weight2, weight3])
+
+        weights = torch.FloatTensor([weight1, weight2, weight3])
+        print(weights)
+        weights = torch.div(1.0, weights)
+        print(weights)
+        # weights = torch.FloatTensor(weights)
+        loss_fn = nn.CrossEntropyLoss(weight=weights)
+
         print(f"shape is {targets.shape}") #checking shape
         # data = data.permute(0, 3, 1, 2)
         # targets = targets.permute(0, 3, 1, 2)
@@ -60,7 +75,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
             print(f"shape of predictions {predictions.shape}") # 2 (batch), 3, 224, 224 (this is good)
             print(f"shape of predictions {torch.unique(predictions)}")
 
-
+            ## just removed long
             loss = loss_fn(predictions, targets.long())
         # backward
         optimizer.zero_grad()

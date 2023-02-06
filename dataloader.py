@@ -65,10 +65,12 @@ class AssemblyDataset(Dataset):
         if self.transform:
             image = self.transform2(image)
             mask = self.transform(mask)
-
+            
         # image = transforms.ToTensor(image)
         # image = torch.from_numpy(np.array(np.asarray(image)))
-        mask = torch.from_numpy(np.array(np.asarray(mask)))
+
+        ## 2-4-2023 1:55pm Changed this to long
+        mask = torch.from_numpy(np.array(np.asarray(mask))).long()
 
         print(f"Image after transform unique: {torch.unique(image)}")
         print(f"Mask after transform unique: {torch.unique(mask)}")
