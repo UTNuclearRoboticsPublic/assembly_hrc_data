@@ -1,5 +1,5 @@
 # assembly_hrc_data
-Labelled data from HRC experiments to be used for semantic hand segmentation.
+Labelled data from HRC experiments to be used for semantic hand segmentation. Includes ability to train using baseline UNET architecture. 
 
 ![sample](samplevisual.png)
 
