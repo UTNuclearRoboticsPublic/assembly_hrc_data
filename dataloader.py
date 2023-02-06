@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 
 transform = transforms.Compose ([
     transforms.Resize(size=(224, 224), interpolation=PIL.Image.NEAREST),
-    # transforms.ToTensor()
 ])
 
 transform2 = transforms.Compose ([
@@ -35,8 +34,8 @@ class AssemblyDataset(Dataset):
         self.images.sort()
         self.masks.sort()
 
-        self.images = self.images[idx1:idx2]
-        self.masks = self.masks[idx1:idx2]
+        self.images = self.images[idx1:idx2+1]
+        self.masks = self.masks[idx1:idx2+1]
 
         ### you can see the 0, 1, 2, 3 labels in the data here
         # lbl = np.asarray(PIL.Image.open(os.path.join(self.label_dir, self.masks[1])))
@@ -53,23 +52,14 @@ class AssemblyDataset(Dataset):
         image = image.convert('RGB')
         mask = Image.open(mask_path)
 
-        # image = np.array(np.asarray(Image.open(image_path)))
-        # # image = image.convert('RGB')
-        # mask = np.array(np.asarray(Image.open(mask_path)))
-        # # mask = mask.convert('RGB')
         print(f"Image before transform unique: {np.unique(np.array(np.asarray(image)))}")
         print(f"Mask before transform unique: {np.unique(np.array(np.asarray(mask)))}")
-        # print(f"Image before transform shape: {image.shape}")
-        # print(f"Mask before transform shape: {mask.shape}")
+
 
         if self.transform:
             image = self.transform2(image)
             mask = self.transform(mask)
             
-        # image = transforms.ToTensor(image)
-        # image = torch.from_numpy(np.array(np.asarray(image)))
-
-        ## 2-4-2023 1:55pm Changed this to long
         mask = torch.from_numpy(np.array(np.asarray(mask))).long()
 
         print(f"Image after transform unique: {torch.unique(image)}")

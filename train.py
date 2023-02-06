@@ -1,6 +1,5 @@
 import torch
 import albumentations as A
-# from albumentations.pytorch import ToTensorV2
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
@@ -12,7 +11,7 @@ from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictio
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
-NUM_EPOCHS = 30
+NUM_EPOCHS = 200
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
@@ -30,44 +29,25 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data, targets = batch
         data = data.to(device=DEVICE)
         targets = targets.to(device=DEVICE)
+        model = model.to(device=DEVICE)
 
         weight1 = torch.sum(targets==0)
         weight2 = torch.sum(targets==1)
         weight3 = torch.sum(targets==2)
 
-        # weights = np.array([weight1, weight2, weight3])
-
         weights = torch.FloatTensor([weight1, weight2, weight3])
-        print(weights)
-        weights = torch.div(1.0, weights)
-        print(weights)
-        # weights = torch.FloatTensor(weights)
+        weights = torch.div(1.0, weights).to(device=DEVICE)
         loss_fn = nn.CrossEntropyLoss(weight=weights)
 
         print(f"shape is {targets.shape}") #checking shape
-        # data = data.permute(0, 3, 1, 2)
-        # targets = targets.permute(0, 3, 1, 2)
-        # targets = torch.argmax(targets, dim=1)
 
         print(f"unique targets are {torch.unique(targets)}") #checking shape
-        # targets = targets[:, :, :, 0]
-
-
-        # targets = targets.squeeze(1)
-
-        # targets = torch.argmax(targets, dim=1)
-        # targets = targets.squeeze()
-
-        # Checking shape when fixing tensor errors
-        # print(f"the shape of the targets is {targets.shape}")
-        # print(f"the shape of the data is {data.shape}")
 
         with torch.cuda.amp.autocast():
             predictions = model(data)
 
             # checking size when fixing tensor shape errors
             print(f"Shape of targets {(targets.shape)}") # 2 (batch), 224, 224
-            ## this should output the class indixes, but it is not
 
             ## the target should be a LongTensor with the shape [batch_size, height, width] 
             ## and contain the class indices for each pixel location in the range [0, nb_classes-1] 

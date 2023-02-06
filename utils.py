@@ -20,10 +20,10 @@ def load_checkpoint(checkpoint, model):
     model.load_state_dict(checkpoint["state_dict"])
 
 def get_loaders(batch_size):
-    train_ds = AssemblyDataset(0, 2)
+    train_ds = AssemblyDataset(0, 3)
     train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
 
-    val_ds = AssemblyDataset(0, 2)
+    val_ds = AssemblyDataset(0, 3)
     val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
     return train_loader, val_loader
@@ -64,5 +64,6 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
         #     plt.savefig(folder)
         #     plt.show()
         plt.imshow(preds[0])
-        plt.show()
+        folder = f"./image.jpg"
+        plt.savefig(folder)
     model.train()
