@@ -3,6 +3,10 @@ Labelled data from HRC experiments to be used for semantic hand segmentation. In
 
 ![sample](samplevisual.png)
 
+## Training model
+
+Run `train.py`. Queried dataset can be adjusted in `utils.py`.
+
 
 ## Converting LabelMe Annotations to Trainable Dataset
 Enter the following command into anaconda prompt in the project directory-
