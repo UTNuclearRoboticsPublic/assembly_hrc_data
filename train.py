@@ -11,6 +11,7 @@ LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
 NUM_EPOCHS = 200
+NUM_NETS = 3
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
@@ -65,9 +66,16 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         loop.set_postfix(loss=loss.item())
 
 def main():
-    model = UNET(in_channels=3, out_channels=3).to(DEVICE)
+    # model = UNET(in_channels=3, out_channels=3).to(DEVICE)
+    nets = []
+    optimizers = []
+    for _ in range(NUM_NETS):
+        net = UNET(in_channels=3, out_channels=3)
+        nets.append(net)
+        optimizers.append(optim.Adam(net.parameters(), lr=LEARNING_RATE))
+
+
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(BATCH_SIZE)
 
@@ -75,21 +83,24 @@ def main():
         load_checkpoint(torch.load("my_checkpoint.pth.tar"), model)
 
     scaler = torch.cuda.amp.GradScaler()
+    for i, net in enumerate(nets):
+        optimizer = optimizers[i]
+        model = nets[i].to(DEVICE)
+        for epoch in range(NUM_EPOCHS):
+            if LOAD_MODEL is not True:
+                model.train()
+                train_fn(train_loader, model, optimizer, loss_fn, scaler)
 
-    for epoch in range(NUM_EPOCHS):
-        if LOAD_MODEL is not True:
-            model.train()
-            train_fn(train_loader, model, optimizer, loss_fn, scaler)
+                # save model
+                checkpoint = {
+                    "state_dict": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                }
+                save_checkpoint(checkpoint)
 
-            # save model
-            checkpoint = {
-                "state_dict": model.state_dict(),
-                "optimizer":optimizer.state_dict(),
-            }
-            save_checkpoint(checkpoint)
-
-            save_predictions_as_imgs(
-            val_loader, model, folder="saved_images/", device=DEVICE
-        )
+                save_predictions_as_imgs(
+                val_loader, model, folder="saved_images/", device=DEVICE
+            )
+        
 if __name__ == "__main__":
     main()

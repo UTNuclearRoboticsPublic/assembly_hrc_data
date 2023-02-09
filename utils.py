@@ -67,3 +67,28 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
         folder = f"./image.jpg"
         plt.savefig(folder)
     model.train()
+
+def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
+    predictions = []
+    for i in range(models):
+        model = models[i]
+        model.eval()
+        for idx, (x, y) in enumerate(loader):
+            x = x.to(device=device)
+
+            with torch.no_grad():
+                outputs = model(x)
+                print(f"the shape of outputs is {outputs.shape}")
+                preds = torch.argmax(outputs, dim=1).detach().cpu()
+
+            """ Shows distribution of the predictions"""
+            print(f"Unique predictions are {torch.unique(preds)}")
+
+            predictions.append(preds)
+
+            folder = "saved_images/predictions/"
+
+            plt.imshow(preds[0])
+            folder = f"./image2.jpg"
+            plt.savefig(folder)
+    
