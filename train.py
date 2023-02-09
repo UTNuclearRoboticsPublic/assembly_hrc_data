@@ -1,5 +1,4 @@
 import torch
-import albumentations as A
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
