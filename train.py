@@ -5,18 +5,20 @@ import torch.optim as optim
 from model import UNET
 import numpy as np
 from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs)
+import matplotlib.pyplot as plt
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
 NUM_EPOCHS = 200
-NUM_NETS = 3
+NUM_NETS = 2
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
 PIN_MEMORY = True
 LOAD_MODEL = False
+losses = []
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
     """train_fn trains the model in model.py with the specified loader, model
@@ -39,24 +41,26 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         weights = torch.div(1.0, weights).to(device=DEVICE)
         loss_fn = nn.CrossEntropyLoss(weight=weights)
 
-        print(f"shape is {targets.shape}") #checking shape
+        # print(f"shape is {targets.shape}") #checking shape
 
-        print(f"unique targets are {torch.unique(targets)}") #checking shape
+        # print(f"unique targets are {torch.unique(targets)}") #checking shape
 
         with torch.cuda.amp.autocast():
             predictions = model(data)
 
             # checking size when fixing tensor shape errors
-            print(f"Shape of targets {(targets.shape)}") # 2 (batch), 224, 224
+            # print(f"Shape of targets {(targets.shape)}") # 2 (batch), 224, 224
 
             ## the target should be a LongTensor with the shape [batch_size, height, width] 
             ## and contain the class indices for each pixel location in the range [0, nb_classes-1] 
 
-            print(f"shape of predictions {predictions.shape}") # 2 (batch), 3, 224, 224 (this is good)
-            print(f"shape of predictions {torch.unique(predictions)}")
+            # print(f"shape of predictions {predictions.shape}") # 2 (batch), 3, 224, 224 (this is good)
+            # print(f"shape of predictions {torch.unique(predictions)}")
 
             ## just removed long
             loss = loss_fn(predictions, targets.long())
+            losses.append(loss.cpu().detach().numpy())
+
         # backward
         optimizer.zero_grad()
         scaler.scale(loss).backward()
@@ -83,6 +87,8 @@ def main():
         load_checkpoint(torch.load("my_checkpoint.pth.tar"), model)
 
     scaler = torch.cuda.amp.GradScaler()
+    epochs = []
+
     for i, net in enumerate(nets):
         optimizer = optimizers[i]
         model = nets[i].to(DEVICE)
@@ -99,8 +105,16 @@ def main():
                 save_checkpoint(checkpoint)
 
                 save_predictions_as_imgs(
-                val_loader, model, folder="saved_images/", device=DEVICE
+                val_loader, model, folder="saved_images/", device=DEVICE, 
             )
+            epochs.append(epoch)
+            plt.clf()
+            if epoch%10 == 0 :
+                plt.plot(epochs, losses, label="Train loss")
+                plt.title("Training Loss Curve")
+                plt.ylabel("Loss")
+                plt.xlabel("Epochs")
+                plt.show()
         
 if __name__ == "__main__":
     main()

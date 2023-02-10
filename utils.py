@@ -28,14 +28,14 @@ def get_loaders(batch_size):
 
     return train_loader, val_loader
 
-def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda"):
+def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda", epochs=3, loss=0):
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
 
         with torch.no_grad():
             outputs = model(x)
-            print(f"the shape of outputs is {outputs.shape}")
+            preds = torch.nn.functional.softmax(outputs, dim=1)
             preds = torch.argmax(outputs, dim=1).detach().cpu()
 
         """ Shows distribution of the predictions"""
@@ -63,13 +63,17 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
         #     folder = f"saved_images/ground_truth/image{j}.jpg"
         #     plt.savefig(folder)
         #     plt.show()
+
+        # fig.add_subplot(2, 2, 1)
         plt.imshow(preds[0])
+        plt.title("Predicted Mask")
+
         folder = f"./image.jpg"
         plt.savefig(folder)
     model.train()
 
 def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
-    predictions = []
+    predictions = np.array([])
     for i in range(models):
         model = models[i]
         model.eval()
@@ -78,17 +82,17 @@ def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
 
             with torch.no_grad():
                 outputs = model(x)
-                print(f"the shape of outputs is {outputs.shape}")
-                preds = torch.argmax(outputs, dim=1).detach().cpu()
 
-            """ Shows distribution of the predictions"""
-            print(f"Unique predictions are {torch.unique(preds)}")
-
-            predictions.append(preds)
+            predictions = np.append(outputs)
 
             folder = "saved_images/predictions/"
+        
+        preds = np.average(predictions)
 
-            plt.imshow(preds[0])
-            folder = f"./image2.jpg"
-            plt.savefig(folder)
+        preds = torch.nn.functional.softmax(outputs, dim=1)
+        preds = torch.argmax(outputs, dim=1).detach().cpu()
+
+        plt.imshow(preds[0])
+        folder = f"./image2.jpg"
+        plt.savefig(folder)
     
