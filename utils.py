@@ -67,3 +67,22 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
         folder = f"./image.jpg"
         plt.savefig(folder)
     model.train()
+def visualize(epochs, error1, error2, error3, error4):
+    
+
+    figure, ax = plt.subplots()
+
+    ax.set_title("Error")
+    ax.set_xlabel("Epochs")
+    ax.set_ylabel("Error Approximation")
+
+    ax.plot(epochs, error1, label = "UNET")
+    ax.plot(epochs, error2, label = "UNET + Dropout")
+    ax.plot(epochs, error3, label = "UNET + Deep Ensembles")
+    ax.plot(epochs, error4, label = "UNET + Deep Ensembles & Drop Out")
+
+    ax.legend(loc = "upper right")
+
+    plt.show()
+
+    
