@@ -2,6 +2,7 @@ import torch
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
+import torchvision
 from model import UNET
 import numpy as np
 from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs)
@@ -41,21 +42,8 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         weights = torch.div(1.0, weights).to(device=DEVICE)
         loss_fn = nn.CrossEntropyLoss(weight=weights)
 
-        # print(f"shape is {targets.shape}") #checking shape
-
-        # print(f"unique targets are {torch.unique(targets)}") #checking shape
-
         with torch.cuda.amp.autocast():
             predictions = model(data)
-
-            # checking size when fixing tensor shape errors
-            # print(f"Shape of targets {(targets.shape)}") # 2 (batch), 224, 224
-
-            ## the target should be a LongTensor with the shape [batch_size, height, width] 
-            ## and contain the class indices for each pixel location in the range [0, nb_classes-1] 
-
-            # print(f"shape of predictions {predictions.shape}") # 2 (batch), 3, 224, 224 (this is good)
-            # print(f"shape of predictions {torch.unique(predictions)}")
 
             ## just removed long
             loss = loss_fn(predictions, targets.long())
@@ -70,7 +58,6 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         loop.set_postfix(loss=loss.item())
 
 def main():
-    # model = UNET(in_channels=3, out_channels=3).to(DEVICE)
     nets = []
     optimizers = []
     for _ in range(NUM_NETS):
