@@ -2,12 +2,18 @@
 
 import torch
 import torchvision
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from dataloader import AssemblyDataset
 from torch import nn
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+from datetime import datetime
 
+## this may be causing some errors
+"""if so, remove"""
+writer = SummaryWriter()
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     """save_checkpoint saves a checkpoint for a trained model"""
@@ -18,6 +24,29 @@ def load_checkpoint(checkpoint, model):
     """load_checkpoint allows you to load a previously trained model"""
     print("=> Loading checkpoint")
     model.load_state_dict(checkpoint["state_dict"])
+
+## tracking test values
+def test(loader, model, loss, device="cuda"):
+    model.eval()
+    
+    test_loss, test_acc  = 0, 0
+
+    with torch.inference_mode():
+        for idx, (X, y) in enumerate(loader):
+            X, y = X.to(device=device), y.to(device=device)
+            test_outputs = model(X)
+            loss = loss(test_outputs, y)
+            test_loss+=loss.item()
+
+            test_preds = torch.argmax(test_outputs, dim=1).detach().cpu()
+            # add test acc
+        
+    test_loss = test_loss/len(loader)
+    test_acc = test_acc/len(loader)
+    return test_loss, test_acc
+    # plt.imshow(preds[0])
+    # folder = f"./image.jpg"
+    # plt.savefig(folder)
 
 def get_loaders(batch_size):
     train_ds = AssemblyDataset(0, 3)
@@ -67,3 +96,18 @@ def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda
         folder = f"./image.jpg"
         plt.savefig(folder)
     model.train()
+
+def create_writer(experiment_name:str, model_name:str, extra: str=None) -> torch.utils.tensorboard.writer.SummaryWriter():
+    
+    # Get timestamp of current date (all experiments on certain day live in same folder)
+    timestamp = datetime.now().strftime("%Y-%m-%d") # returns current date in YYYY-MM-DD format
+
+    if extra:
+        # Create log directory path
+        log_dir = os.path.join("runs", timestamp, experiment_name, model_name, extra)
+    else:
+        log_dir = os.path.join("runs", timestamp, experiment_name, model_name)
+    
+    print(f"[INFO] Created SummaryWriter, saving to: {log_dir}...")
+    return SummaryWriter(log_dir=log_dir)
+
