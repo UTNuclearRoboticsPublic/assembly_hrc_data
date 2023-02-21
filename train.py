@@ -1,5 +1,6 @@
 import torch
 from torch.utils.tensorboard import SummaryWriter
+from torchmetrics.classification import MulticlassJaccardIndex
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
@@ -11,12 +12,16 @@ from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictio
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
-NUM_EPOCHS = 20
+NUM_EPOCHS = 200
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
 PIN_MEMORY = True
 LOAD_MODEL = False
+
+experiment_name="unet_TESTpercent"
+model_name="UNET_Dropout"
+extra="200_epochsTHISTIME"
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
     """train_fn trains the model in model.py with the specified loader, model
@@ -62,18 +67,24 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
             loss = loss_fn(predictions, targets.long())
             train_loss+=loss.item()
 
+            ## train accuracy and loss writing
+            train_preds = torch.argmax(predictions, dim=1).detach()
+            metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
+            train_acc += metric(train_preds, targets) 
+
         # backward
         optimizer.zero_grad()
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
+
         # update tqdm loop
         loop.set_postfix(loss=loss.item())
 
-        train_loss = train_loss/len(loader)
-        train_acc = train_acc / len(loader)
+    train_loss = train_loss/len(loader)
+    train_acc = train_acc / len(loader)
 
-        return train_loss, train_acc
+    return train_loss, train_acc
 
 
 
@@ -82,12 +93,10 @@ def main():
     loss_fn = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    writer = SummaryWriter()
-
     train_loader, val_loader = get_loaders(BATCH_SIZE)
 
     if LOAD_MODEL:
-        load_checkpoint(torch.load("my_checkpoint.pth.tar"), model)
+        load_checkpoint(torch.load(experiment_name + model_name + extra), model)
 
     scaler = torch.cuda.amp.GradScaler()
 
@@ -97,6 +106,13 @@ def main():
         "test_loss": [],
         "test_acc": []
     }
+
+    # Create an example writer
+    writer = create_writer(
+        experiment_name,
+        model_name,
+        extra
+    )
 
     for epoch in range(NUM_EPOCHS):
         if LOAD_MODEL is not True:
@@ -109,13 +125,6 @@ def main():
             results["test_loss"].append(test_loss)
             results["test_acc"].append(test_acc)
 
-            # Create an example writer
-            example_writer = create_writer(
-                experiment_name="unet_10percent",
-                model_name="UNET_Dropout",
-                extra="5_epochs"
-            )
-
             writer.add_scalars(main_tag="Loss", 
                            tag_scalar_dict={"train_loss": train_loss,
                                             "test_loss": test_loss},
@@ -127,12 +136,14 @@ def main():
                                                 "test_acc": test_acc}, 
                                 global_step=epoch)
 
+            writer.close()
+
             # save model
             checkpoint = {
                 "state_dict": model.state_dict(),
-                "optimizer":optimizer.state_dict(),
+                "optimizer": optimizer.state_dict(),
             }
-            save_checkpoint(checkpoint)
+            save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
 
             save_predictions_as_imgs(
             val_loader, model, folder="saved_images/", device=DEVICE

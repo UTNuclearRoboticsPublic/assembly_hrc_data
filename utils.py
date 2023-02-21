@@ -2,6 +2,7 @@
 
 import torch
 import torchvision
+from torchmetrics.classification import MulticlassJaccardIndex
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from dataloader import AssemblyDataset
@@ -10,10 +11,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from datetime import datetime
-
-## this may be causing some errors
-"""if so, remove"""
-writer = SummaryWriter()
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     """save_checkpoint saves a checkpoint for a trained model"""
@@ -35,10 +32,12 @@ def test(loader, model, loss, device="cuda"):
         for idx, (X, y) in enumerate(loader):
             X, y = X.to(device=device), y.to(device=device)
             test_outputs = model(X)
-            loss = loss(test_outputs, y)
+            loss = loss(test_outputs, y.long())
             test_loss+=loss.item()
 
-            test_preds = torch.argmax(test_outputs, dim=1).detach().cpu()
+            test_preds = torch.argmax(test_outputs, dim=1).detach()
+            metric = MulticlassJaccardIndex(num_classes=3).to(device=device)
+            test_acc += metric(test_preds, y) 
             # add test acc
         
     test_loss = test_loss/len(loader)
@@ -56,6 +55,7 @@ def get_loaders(batch_size):
     val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
     return train_loader, val_loader
+
 
 def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda"):
     model.eval()
