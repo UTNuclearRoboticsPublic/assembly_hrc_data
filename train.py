@@ -19,7 +19,7 @@ IMAGE_WIDTH = 64
 PIN_MEMORY = True
 LOAD_MODEL = False
 
-experiment_name="unet_TESTpercent"
+experiment_name="unet_TEST3percent"
 model_name="UNET_Dropout"
 extra="200_epochsTHISTIME"
 
@@ -68,9 +68,9 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
             train_loss+=loss.item()
 
             ## train accuracy and loss writing
-            train_preds = torch.argmax(predictions, dim=1).detach()
+            predictions = torch.argmax(predictions, dim=1).detach()
             metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
-            train_acc += metric(train_preds, targets) 
+            train_acc += metric(predictions, targets.long()) 
 
         # backward
         optimizer.zero_grad()

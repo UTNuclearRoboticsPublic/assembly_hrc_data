@@ -25,19 +25,20 @@ def load_checkpoint(checkpoint, model):
 ## tracking test values
 def test(loader, model, loss, device="cuda"):
     model.eval()
-    
+
     test_loss, test_acc  = 0, 0
+    metric = MulticlassJaccardIndex(num_classes=3).to(device=device)
 
     with torch.inference_mode():
         for idx, (X, y) in enumerate(loader):
             X, y = X.to(device=device), y.to(device=device)
             test_outputs = model(X)
-            loss = loss(test_outputs, y.long())
-            test_loss+=loss.item()
+            batch_loss = loss(test_outputs, y.long())
+            test_loss+=batch_loss.item()
 
-            test_preds = torch.argmax(test_outputs, dim=1).detach()
-            metric = MulticlassJaccardIndex(num_classes=3).to(device=device)
-            test_acc += metric(test_preds, y) 
+            # test_preds = torch.argmax(test_outputs, dim=1).detach()
+            test_outputs = torch.argmax(test_outputs, dim=1).detach().cpu()
+            test_acc += metric(test_outputs, y.long()) 
             # add test acc
         
     test_loss = test_loss/len(loader)
