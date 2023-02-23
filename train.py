@@ -4,20 +4,24 @@ from torchmetrics.classification import MulticlassJaccardIndex
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
+import torchvision
 from model import UNET
 import numpy as np
 from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer)
+import matplotlib as plt
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
 NUM_EPOCHS = 200
+NUM_NETS = 2
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
 PIN_MEMORY = True
 LOAD_MODEL = False
+losses = []
 
 experiment_name="unet_TEST3percent"
 model_name="UNET_Dropout"
@@ -47,24 +51,13 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
         
 
-        print(f"shape is {targets.shape}") #checking shape
-
-        print(f"unique targets are {torch.unique(targets)}") #checking shape
-
         with torch.cuda.amp.autocast():
             predictions = model(data)
 
-            # checking size when fixing tensor shape errors
-            print(f"Shape of targets {(targets.shape)}") # 2 (batch), 224, 224
-
-            ## the target should be a LongTensor with the shape [batch_size, height, width] 
-            ## and contain the class indices for each pixel location in the range [0, nb_classes-1] 
-
-            print(f"shape of predictions {predictions.shape}") # 2 (batch), 3, 224, 224 (this is good)
-            print(f"shape of predictions {torch.unique(predictions)}")
-
             ## just removed long
             loss = loss_fn(predictions, targets.long())
+            losses.append(loss.cpu().detach().numpy())
+
             train_loss+=loss.item()
 
             ## train accuracy and loss writing
@@ -89,9 +82,15 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 
 def main():
-    model = UNET(in_channels=3, out_channels=3, droprate=0.5).to(DEVICE)
+    nets = []
+    optimizers = []
+    for _ in range(NUM_NETS):
+        net = UNET(in_channels=3, out_channels=3, droprate=0.5)
+        nets.append(net)
+        optimizers.append(optim.Adam(net.parameters(), lr=LEARNING_RATE))
+
+
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(BATCH_SIZE)
 
@@ -99,6 +98,7 @@ def main():
         load_checkpoint(torch.load(experiment_name + model_name + extra), model)
 
     scaler = torch.cuda.amp.GradScaler()
+    epochs = []
 
     results = {
         "train_loss": [],
@@ -114,10 +114,13 @@ def main():
         extra
     )
 
-    for epoch in range(NUM_EPOCHS):
-        if LOAD_MODEL is not True:
-            model.train()
-            train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
+    for i, net in enumerate(nets):
+        optimizer = optimizers[i]
+        model = nets[i].to(DEVICE)
+        for epoch in range(NUM_EPOCHS):
+            if LOAD_MODEL is not True:
+                model.train()
+                train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
             test_loss, test_acc = test(val_loader, model, loss_fn)
 
             results["train_loss"].append(train_loss)
@@ -138,16 +141,45 @@ def main():
 
             writer.close()
 
-            # save model
-            checkpoint = {
-                "state_dict": model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-            }
-            save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
+                # save model
+                checkpoint = {
+                    "state_dict": model.state_dict(),
+                    "optimizer":  optimizer.state_dict(),
+                }
+                save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
 
             save_predictions_as_imgs(
             val_loader, model, folder="saved_images/", device=DEVICE
         )
     writer.close()
+    epochs = []
+
+    for i, net in enumerate(nets):
+        optimizer = optimizers[i]
+        model = nets[i].to(DEVICE)
+        for epoch in range(NUM_EPOCHS):
+            if LOAD_MODEL is not True:
+                model.train()
+                train_fn(train_loader, model, optimizer, loss_fn, scaler)
+
+                # save model
+                checkpoint = {
+                    "state_dict": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                }
+                save_checkpoint(checkpoint)
+
+                save_predictions_as_imgs(
+                val_loader, model, folder="saved_images/", device=DEVICE, 
+            )
+            epochs.append(epoch)
+            plt.clf()
+            if epoch%10 == 0 :
+                plt.plot(epochs, losses, label="Train loss")
+                plt.title("Training Loss Curve")
+                plt.ylabel("Loss")
+                plt.xlabel("Epochs")
+                plt.show()
+        
 if __name__ == "__main__":
     main()
