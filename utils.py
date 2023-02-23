@@ -36,8 +36,7 @@ def test(loader, model, loss, device="cuda"):
             batch_loss = loss(test_outputs, y.long())
             test_loss+=batch_loss.item()
 
-            # test_preds = torch.argmax(test_outputs, dim=1).detach()
-            test_outputs = torch.argmax(test_outputs, dim=1).detach().cpu()
+            test_outputs = torch.argmax(test_outputs, dim=1).detach() ## removed .cpu
             test_acc += metric(test_outputs, y.long()) 
             # add test acc
         
@@ -118,26 +117,28 @@ def create_writer(experiment_name:str, model_name:str, extra: str=None) -> torch
 
 
 def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
-    predictions = np.array([])
-    for i in range(models):
-        model = models[i]
+    predictions = []
+    for model in models:
         model.eval()
+        model = model.to(device=device)
         for idx, (x, y) in enumerate(loader):
             x = x.to(device=device)
 
             with torch.no_grad():
                 outputs = model(x)
 
-            predictions = np.append(outputs)
-
             folder = "saved_images/predictions/"
         
-        preds = np.average(predictions)
+        # outputs = outputs.detach.numpy()
+        outputs = outputs.cpu().detach().numpy()
+        predictions.append(outputs)
+        
+    outputs = np.average(predictions, axis=0)
+    outputs = torch.from_numpy(outputs)
+    preds = torch.nn.functional.softmax(outputs, dim=1)
+    preds = torch.argmax(outputs, dim=1).detach().cpu()
 
-        preds = torch.nn.functional.softmax(outputs, dim=1)
-        preds = torch.argmax(outputs, dim=1).detach().cpu()
-
-        plt.imshow(preds[0])
-        folder = f"./image2.jpg"
-        plt.savefig(folder)
+    plt.imshow(preds[0])
+    folder = f"./image2.jpg"
+    plt.savefig(folder)
     

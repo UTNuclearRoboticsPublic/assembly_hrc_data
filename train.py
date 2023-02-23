@@ -5,24 +5,28 @@ from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-from model import UNET
+from UNET import UNET
+from UNET_Dropout import UNET_Dropout
 import numpy as np
-from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer)
+from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer, ensemble_predict)
 import matplotlib as plt
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
-NUM_EPOCHS = 200
-NUM_NETS = 2
+NUM_EPOCHS = 3
+NUM_NETS = 2 # set to 1 if you don't want to use deep ensembles
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
 PIN_MEMORY = True
 LOAD_MODEL = False
-losses = []
 
+## Choose model
+architecture="UNET_Dropout" # or "UNET"
+
+## Choose how you will label the experiment
 experiment_name="unet_TEST3percent"
 model_name="UNET_Dropout"
 extra="200_epochsTHISTIME"
@@ -56,12 +60,12 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
             ## just removed long
             loss = loss_fn(predictions, targets.long())
-            losses.append(loss.cpu().detach().numpy())
 
             train_loss+=loss.item()
 
             ## train accuracy and loss writing
-            predictions = torch.argmax(predictions, dim=1).detach()
+            predictions = torch.argmax(predictions, dim=1).detach() # removed an addition .cpu() at the end
+            predictions = predictions.to(device=DEVICE)
             metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
             train_acc += metric(predictions, targets.long()) 
 
@@ -85,7 +89,10 @@ def main():
     nets = []
     optimizers = []
     for _ in range(NUM_NETS):
-        net = UNET(in_channels=3, out_channels=3, droprate=0.5)
+        if architecture == "UNET_Dropout":
+            net = UNET_Dropout(in_channels=3, out_channels=3, droprate=0.5)
+        elif architecture == "UNET":
+            net = UNET(in_channels=3, out_channels=3)
         nets.append(net)
         optimizers.append(optim.Adam(net.parameters(), lr=LEARNING_RATE))
 
@@ -139,47 +146,21 @@ def main():
                                                 "test_acc": test_acc}, 
                                 global_step=epoch)
 
-            writer.close()
+            # save model
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer":  optimizer.state_dict(),
+            }
+            save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
 
-                # save model
-                checkpoint = {
-                    "state_dict": model.state_dict(),
-                    "optimizer":  optimizer.state_dict(),
-                }
-                save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
+            ensemble_predict(
+            val_loader, nets, folder="saved_images/", device=DEVICE
+        )
 
             save_predictions_as_imgs(
             val_loader, model, folder="saved_images/", device=DEVICE
         )
     writer.close()
-    epochs = []
-
-    for i, net in enumerate(nets):
-        optimizer = optimizers[i]
-        model = nets[i].to(DEVICE)
-        for epoch in range(NUM_EPOCHS):
-            if LOAD_MODEL is not True:
-                model.train()
-                train_fn(train_loader, model, optimizer, loss_fn, scaler)
-
-                # save model
-                checkpoint = {
-                    "state_dict": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                }
-                save_checkpoint(checkpoint)
-
-                save_predictions_as_imgs(
-                val_loader, model, folder="saved_images/", device=DEVICE, 
-            )
-            epochs.append(epoch)
-            plt.clf()
-            if epoch%10 == 0 :
-                plt.plot(epochs, losses, label="Train loss")
-                plt.title("Training Loss Curve")
-                plt.ylabel("Loss")
-                plt.xlabel("Epochs")
-                plt.show()
         
 if __name__ == "__main__":
     main()

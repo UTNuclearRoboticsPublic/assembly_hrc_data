@@ -49,11 +49,11 @@ class DoubleConv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
-class UNET(nn.Module):
+class UNET_Dropout(nn.Module):
     def __init__(
             self, in_channels, out_channels, droprate, features=[64, 128, 256, 512],
     ):
-        super(UNET, self).__init__()
+        super(UNET_Dropout, self).__init__()
         self.ups = nn.ModuleList()
         self.downs = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -100,7 +100,7 @@ class UNET(nn.Module):
 
 def test():
     x = torch.randn((7, 3, 161, 161))
-    model = UNET(in_channels=3, out_channels=3)
+    model = UNET_Dropout(in_channels=3, out_channels=3)
     preds = model(x)
     print(preds.shape == x.shape)
 
