@@ -15,8 +15,8 @@ import matplotlib as plt
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
-NUM_EPOCHS = 3
-NUM_NETS = 2 # set to 1 if you don't want to use deep ensembles
+NUM_EPOCHS = 150
+NUM_NETS = 1 # set to 1 if you don't want to use deep ensembles
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
@@ -24,12 +24,12 @@ PIN_MEMORY = True
 LOAD_MODEL = False
 
 ## Choose model
-architecture="UNET_Dropout" # or "UNET"
+architecture="UNET" # or "UNET_Dropout"
 
 ## Choose how you will label the experiment
-experiment_name="unet_TEST3percent"
-model_name="UNET_Dropout"
-extra="200_epochsTHISTIME"
+experiment_name="unet_nodrop"
+model_name="UNET"
+extra="150_epochsTHISTIME"
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
     """train_fn trains the model in model.py with the specified loader, model
@@ -99,7 +99,7 @@ def main():
 
     loss_fn = nn.CrossEntropyLoss()
 
-    train_loader, val_loader = get_loaders(BATCH_SIZE)
+    train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE)
 
     if LOAD_MODEL:
         load_checkpoint(torch.load(experiment_name + model_name + extra), model)
@@ -153,12 +153,12 @@ def main():
             }
             save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
 
-            ensemble_predict(
-            val_loader, nets, folder="saved_images/", device=DEVICE
-        )
+        #     ensemble_predict(
+        #     val_loader, nets, folder="saved_images/", device=DEVICE
+        # )
 
             save_predictions_as_imgs(
-            val_loader, model, folder="saved_images/", device=DEVICE
+            clean_val_loader, val_loader, model, folder="saved_images/", device=DEVICE
         )
     writer.close()
         

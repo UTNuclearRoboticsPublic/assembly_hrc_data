@@ -4,10 +4,14 @@ import torch
 import torchvision
 from torchmetrics.classification import MulticlassJaccardIndex
 from torch.utils.tensorboard import SummaryWriter
+import torchvision.transforms as transforms
+from torchvision.utils import draw_segmentation_masks
 from torch.utils.data import DataLoader
 from dataloader import AssemblyDataset
 from torch import nn
+import torch.nn.functional as F
 import matplotlib.pyplot as plt
+import PIL
 import numpy as np
 import os
 from datetime import datetime
@@ -47,6 +51,11 @@ def test(loader, model, loss, device="cuda"):
     # folder = f"./image.jpg"
     # plt.savefig(folder)
 
+transform3 = transforms.Compose([
+    transforms.ToTensor(),
+    lambda x: x.mul(255)
+])
+
 def get_loaders(batch_size):
     train_ds = AssemblyDataset(0, 3)
     train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
@@ -54,51 +63,100 @@ def get_loaders(batch_size):
     val_ds = AssemblyDataset(0, 3)
     val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
-    return train_loader, val_loader
+    clean_val_ds = AssemblyDataset(0, 3, transform2=transform3)
+    clean_val_loader = DataLoader(dataset=clean_val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
+    return train_loader, val_loader, clean_val_loader
 
-def save_predictions_as_imgs(loader, model, folder="saved_images/", device="cuda", epochs=3, loss=0):
+def save_predictions_as_imgs(clean_loader, loader, model, folder="saved_images/", device="cuda", epochs=3, loss=0):
     model.eval()
-    for idx, (x, y) in enumerate(loader):
+
+    for idx, (loader_item, clean_loader_item) in enumerate(zip(loader, clean_loader)):
+        x1, y1 = clean_loader_item
+        x, y = loader_item, clean_loader_item
         x = x.to(device=device)
 
-        with torch.no_grad():
-            outputs = model(x)
+        outputs = model(x)
+
+        with torch.no_grad:
             preds = torch.nn.functional.softmax(outputs, dim=1)
             preds = torch.argmax(outputs, dim=1).detach().cpu()
+    
+        preds = preds.cpu()
 
-        """ Shows distribution of the predictions"""
-        print(f"Unique predictions are {torch.unique(preds)}")
 
-        folder = "saved_images/predictions/"
+        hands_with_masks = [
+            draw_segmentation_masks(img.permute(2, 0, 1), masks=mask, alpha=0.5, colors="green")
+            for img, mask in zip(x1, preds)
+        ]
 
-        # to save prediciton image
-        # torchvision.utils.save_image(
-        #     preds, f"{folder}/pred_{idx}.png"
-        # )
+        images = [
+            img.permute(2, 0, 1)
+            for img, mask in zip(x1, preds)
+        ]
 
-        """Testing shape size for fitting"""
-        # print("hello")
-        # print(f"y shape {torch.unique(y)}")
-        # print(f"preds shape {preds.shape}")
-        # print(f"preds 1 shape {preds[0].shape} and unique {torch.unique(preds[0])}")
+        masks = [
+            mask
+            for img, mask in zip(x1, y)
+        ]
 
-        """save ground truth"""
-        # img = TF.to_pil_image(preds)
-        # for j in range(x.shape[0]):
-        #     print(torch.unique(preds[1]))
-        #     plt.imshow(preds[0])
-        #     # plt.imshow(np.transpose(y[j], (1, 2, 0)))
-        #     folder = f"saved_images/ground_truth/image{j}.jpg"
-        #     plt.savefig(folder)
-        #     plt.show()
+        fig, axs = plt.subplots(1, 3, figsize=(10, 5))
+        axs[1].imshow(hands_with_masks[0].permute(1, 2, 0))
+        axs[1].set_title('Predicted Segmentation Mask')
+        axs[1].axis('off')
 
-        # fig.add_subplot(2, 2, 1)
-        plt.imshow(preds[0])
-        plt.title("Predicted Mask")
+        axs[0].imshow(images[0].permute(1, 2, 0))
+        axs[0].set_title('Image')
+        axs[0].axis('off')
 
-        folder = f"./image.jpg"
-        plt.savefig(folder)
+        axs[2].imshow(masks[0].permute(1, 2, 0))
+        axs[2].set_title('Ground Truth Mask')
+        axs[2].axis('off')
+
+        # plt.imshow(preds[0,:, :, :].permute(1, 2, 0), alpha = 0.6)
+        plt.savefig("img3.jpg", dpi=300)
+        plt.show()
+
+    # for idx, (x, y) in enumerate(loader):
+    #     x = x.to(device=device)
+
+    #     with torch.no_grad():
+    #         outputs = model(x)
+    #         preds = torch.nn.functional.softmax(outputs, dim=1)
+    #         preds = torch.argmax(outputs, dim=1).detach().cpu()
+
+    #     """ Shows distribution of the predictions"""
+    #     print(f"Unique predictions are {torch.unique(preds)}")
+
+    #     folder = "saved_images/predictions/"
+
+    #     # to save prediciton image
+    #     # torchvision.utils.save_image(
+    #     #     preds, f"{folder}/pred_{idx}.png"
+    #     # )
+
+    #     """Testing shape size for fitting"""
+    #     # print("hello")
+    #     # print(f"y shape {torch.unique(y)}")
+    #     # print(f"preds shape {preds.shape}")
+    #     # print(f"preds 1 shape {preds[0].shape} and unique {torch.unique(preds[0])}")
+
+    #     """save ground truth"""
+    #     # img = TF.to_pil_image(preds)
+    #     # for j in range(x.shape[0]):
+    #     #     print(torch.unique(preds[1]))
+    #     #     plt.imshow(preds[0])
+    #     #     # plt.imshow(np.transpose(y[j], (1, 2, 0)))
+    #     #     folder = f"saved_images/ground_truth/image{j}.jpg"
+    #     #     plt.savefig(folder)
+    #     #     plt.show()
+
+    #     # fig.add_subplot(2, 2, 1)
+    #     plt.imshow(preds[0])
+    #     plt.title("Predicted Mask")
+
+    #     folder = f"./image.jpg"
+    #     plt.savefig(folder)
     model.train()
 
 def create_writer(experiment_name:str, model_name:str, extra: str=None) -> torch.utils.tensorboard.writer.SummaryWriter():

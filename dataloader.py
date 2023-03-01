@@ -20,7 +20,7 @@ transform2 = transforms.Compose ([
 ])
 
 class AssemblyDataset(Dataset):
-    def __init__(self, idx1, idx2):
+    def __init__(self, idx1, idx2, transform2=transform2):
         # data loading
         self.image_dir = r'./data_dataset_voc/JPEGImages'
         self.label_dir = r'./data_dataset_voc/SegmentationClassPNG'
@@ -56,10 +56,9 @@ class AssemblyDataset(Dataset):
         print(f"Mask before transform unique: {np.unique(np.array(np.asarray(mask)))}")
 
 
-        if self.transform:
-            image = self.transform2(image)
-            mask = self.transform(mask)
-            
+        image = self.transform2(image)
+        mask = self.transform(mask)
+        
         mask = torch.from_numpy(np.array(np.asarray(mask))).long()
 
         print(f"Image after transform unique: {torch.unique(image)}")
