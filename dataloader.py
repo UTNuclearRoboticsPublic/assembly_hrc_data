@@ -11,11 +11,11 @@ import os
 import matplotlib.pyplot as plt
 
 transform = transforms.Compose ([
-    transforms.Resize(size=(224, 224), interpolation=PIL.Image.NEAREST),
+    transforms.Resize(size=(64, 64), interpolation=PIL.Image.NEAREST),
 ])
 
 transform2 = transforms.Compose ([
-    transforms.Resize(size=(224, 224), interpolation=PIL.Image.NEAREST),
+    transforms.Resize(size=(64, 64), interpolation=PIL.Image.NEAREST),
     transforms.ToTensor()
 ])
 

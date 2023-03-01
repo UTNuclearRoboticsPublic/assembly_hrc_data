@@ -21,7 +21,7 @@ NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
 PIN_MEMORY = True
-LOAD_MODEL = False
+LOAD_MODEL = True
 
 ## Choose model
 architecture="UNET" # or "UNET_Dropout"
@@ -102,17 +102,18 @@ def main():
     train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE)
 
     if LOAD_MODEL:
-        load_checkpoint(torch.load(experiment_name + model_name + extra), model)
+        load_checkpoint(torch.load(experiment_name + model_name + extra), net)
 
     scaler = torch.cuda.amp.GradScaler()
     epochs = []
 
-    results = {
-        "train_loss": [],
-        "train_acc": [],
-        "test_loss": [],
-        "test_acc": []
-    }
+    if LOAD_MODEL is not True:  
+        results = {
+            "train_loss": [],
+            "train_acc": [],
+            "test_loss": [],
+            "test_acc": []
+        }
 
     # Create an example writer
     writer = create_writer(
@@ -130,21 +131,23 @@ def main():
                 train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
             test_loss, test_acc = test(val_loader, model, loss_fn)
 
-            results["train_loss"].append(train_loss)
-            results["train_acc"].append(train_acc)
-            results["test_loss"].append(test_loss)
-            results["test_acc"].append(test_acc)
 
-            writer.add_scalars(main_tag="Loss", 
-                           tag_scalar_dict={"train_loss": train_loss,
-                                            "test_loss": test_loss},
-                           global_step=epoch)
+            if LOAD_MODEL is not True:
+                results["train_loss"].append(train_loss)
+                results["train_acc"].append(train_acc)
+                results["test_loss"].append(test_loss)
+                results["test_acc"].append(test_acc)
 
-            # Add accuracy results to SummaryWriter
-            writer.add_scalars( main_tag="Accuracy", 
-                                tag_scalar_dict={"train_acc": train_acc,
-                                                "test_acc": test_acc}, 
-                                global_step=epoch)
+                writer.add_scalars(main_tag="Loss", 
+                            tag_scalar_dict={"train_loss": train_loss,
+                                                "test_loss": test_loss},
+                            global_step=epoch)
+
+                # Add accuracy results to SummaryWriter
+                writer.add_scalars( main_tag="Accuracy", 
+                                    tag_scalar_dict={"train_acc": train_acc,
+                                                    "test_acc": test_acc}, 
+                                    global_step=epoch)
 
             # save model
             checkpoint = {

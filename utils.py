@@ -51,9 +51,15 @@ def test(loader, model, loss, device="cuda"):
     # folder = f"./image.jpg"
     # plt.savefig(folder)
 
+# transform3 = transforms.Compose([
+#     transforms.PILToTensor()
+# ])
+
 transform3 = transforms.Compose([
+    transforms.Resize(size=(1258, 1260)),
+    # lambda x: x.mul(255).round().div(255)
     transforms.ToTensor(),
-    lambda x: x.mul(255)
+    lambda x: (x * 255).int().to(torch.uint8)
 ])
 
 def get_loaders(batch_size):
@@ -73,20 +79,28 @@ def save_predictions_as_imgs(clean_loader, loader, model, folder="saved_images/"
 
     for idx, (loader_item, clean_loader_item) in enumerate(zip(loader, clean_loader)):
         x1, y1 = clean_loader_item
-        x, y = loader_item, clean_loader_item
+        x, y = loader_item
         x = x.to(device=device)
 
         outputs = model(x)
+        outputs = F.interpolate(outputs, size=(1258, 1260), mode = 'nearest')
 
-        with torch.no_grad:
+
+        with torch.no_grad():
             preds = torch.nn.functional.softmax(outputs, dim=1)
-            preds = torch.argmax(outputs, dim=1).detach().cpu()
-    
+            preds = torch.argmax(preds, dim=1).detach().cpu()
+
+        print(f"shape of preds is {preds.shape}")
+
         preds = preds.cpu()
 
+        preds = (preds == torch.arange(4)[:, None, None])
+        # preds= preds.swapaxes(0, 1)
+        preds = preds.permute(1, 0, 2)
+        print(f"shape of preds is {preds.shape}")
 
         hands_with_masks = [
-            draw_segmentation_masks(img.permute(2, 0, 1), masks=mask, alpha=0.5, colors="green")
+            draw_segmentation_masks(img, masks=mask, alpha=0.5, colors=["green", "yellow", "blue"])
             for img, mask in zip(x1, preds)
         ]
 
@@ -105,11 +119,11 @@ def save_predictions_as_imgs(clean_loader, loader, model, folder="saved_images/"
         axs[1].set_title('Predicted Segmentation Mask')
         axs[1].axis('off')
 
-        axs[0].imshow(images[0].permute(1, 2, 0))
+        axs[0].imshow(images[0].permute(2, 0, 1))
         axs[0].set_title('Image')
         axs[0].axis('off')
 
-        axs[2].imshow(masks[0].permute(1, 2, 0))
+        axs[2].imshow(masks[0])
         axs[2].set_title('Ground Truth Mask')
         axs[2].axis('off')
 
