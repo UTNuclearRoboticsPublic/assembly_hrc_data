@@ -11,16 +11,16 @@ import os
 import matplotlib.pyplot as plt
 
 transform = transforms.Compose ([
-    transforms.Resize(size=(224, 224), interpolation=PIL.Image.NEAREST),
+    transforms.Resize(size=(64, 64), interpolation=PIL.Image.NEAREST),
 ])
 
 transform2 = transforms.Compose ([
-    transforms.Resize(size=(224, 224), interpolation=PIL.Image.NEAREST),
+    transforms.Resize(size=(64, 64), interpolation=PIL.Image.NEAREST),
     transforms.ToTensor()
 ])
 
 class AssemblyDataset(Dataset):
-    def __init__(self, idx1, idx2):
+    def __init__(self, idx1, idx2, transform2=transform2):
         # data loading
         self.image_dir = r'./data_dataset_voc/JPEGImages'
         self.label_dir = r'./data_dataset_voc/SegmentationClassPNG'
@@ -56,10 +56,9 @@ class AssemblyDataset(Dataset):
         print(f"Mask before transform unique: {np.unique(np.array(np.asarray(mask)))}")
 
 
-        if self.transform:
-            image = self.transform2(image)
-            mask = self.transform(mask)
-            
+        image = self.transform2(image)
+        mask = self.transform(mask)
+        
         mask = torch.from_numpy(np.array(np.asarray(mask))).long()
 
         print(f"Image after transform unique: {torch.unique(image)}")
