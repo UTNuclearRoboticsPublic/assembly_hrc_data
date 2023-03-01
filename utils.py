@@ -95,12 +95,14 @@ def save_predictions_as_imgs(clean_loader, loader, model, folder="saved_images/"
         preds = preds.cpu()
 
         preds = (preds == torch.arange(4)[:, None, None])
+        preds = ~preds.bool()
+
         # preds= preds.swapaxes(0, 1)
-        preds = preds.permute(1, 0, 2)
+        # preds = preds.permute(1, 0, 2)
         print(f"shape of preds is {preds.shape}")
 
         hands_with_masks = [
-            draw_segmentation_masks(img, masks=mask, alpha=0.5, colors=["green", "yellow", "blue"])
+            draw_segmentation_masks(img, masks=mask, alpha=0.4, colors=["red"])
             for img, mask in zip(x1, preds)
         ]
 
