@@ -24,11 +24,11 @@ PIN_MEMORY = True
 LOAD_MODEL = True
 
 ## Choose model
-architecture="UNET" # or "UNET_Dropout"
+architecture="UNET" # or "UNET_Dropout" or "FastSCNN"
 
 ## Choose how you will label the experiment
-train_set = "assembly" # either assembly or egohands
-test_set = "assembly" # either assembly or egohands
+train_set = "assembly" # either "assembly" or "egohands"
+test_set = "assembly" # either "assembly" or "egohands"
 
 
 ## Auto-set values that will be used to save your experiment
