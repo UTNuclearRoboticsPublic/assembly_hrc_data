@@ -27,9 +27,14 @@ LOAD_MODEL = True
 architecture="UNET" # or "UNET_Dropout"
 
 ## Choose how you will label the experiment
-experiment_name="unet_nodrop"
-model_name="UNET"
-extra="150_epochsTHISTIME"
+train_set = "assembly" # either assembly or egohands
+test_set = "assembly" # either assembly or egohands
+
+
+## Auto-set values that will be used to save your experiment
+experiment_name=f"{architecture}_architecute"
+model_name=f"{architecture}"
+extra= f"{NUM_EPOCHS}-epochs_{train_set}-train_{test_set}-test"
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
     """train_fn trains the model in model.py with the specified loader, model
@@ -93,13 +98,15 @@ def main():
             net = UNET_Dropout(in_channels=3, out_channels=3, droprate=0.5)
         elif architecture == "UNET":
             net = UNET(in_channels=3, out_channels=3)
+        elif architecture == "FastSCNN":
+            ## adjust this when adding EgoHands to the Model
+            net = UNET(in_channels=3, out_channels=3)
         nets.append(net)
         optimizers.append(optim.Adam(net.parameters(), lr=LEARNING_RATE))
 
-
     loss_fn = nn.CrossEntropyLoss()
 
-    train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE)
+    train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE, train_set, test_set)
 
     if LOAD_MODEL:
         load_checkpoint(torch.load(experiment_name + model_name + extra), net)
@@ -161,7 +168,7 @@ def main():
         # )
 
             save_predictions_as_imgs(
-            clean_val_loader, val_loader, model, folder="saved_images/", device=DEVICE
+            train_set, clean_val_loader, val_loader, model, folder="saved_images/", device=DEVICE
         )
     writer.close()
         

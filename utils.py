@@ -62,76 +62,98 @@ transform3 = transforms.Compose([
     lambda x: (x * 255).int().to(torch.uint8)
 ])
 
-def get_loaders(batch_size):
-    train_ds = AssemblyDataset(0, 3)
-    train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
+def get_loaders(batch_size, train_set, test_set):
+    if train_set=="assembly":
+        train_ds = AssemblyDataset(0, 3)
+        train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
+    elif train_set=="egohands":
+        # write egohands code here for the training set
+        x = 5
+    if test_set=="assembly":
+        val_ds = AssemblyDataset(0, 3)
+        val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
-    val_ds = AssemblyDataset(0, 3)
-    val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
+        clean_val_ds = AssemblyDataset(0, 3, transform2=transform3)
+        clean_val_loader = DataLoader(dataset=clean_val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
-    clean_val_ds = AssemblyDataset(0, 3, transform2=transform3)
-    clean_val_loader = DataLoader(dataset=clean_val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
+    elif train_set == "egohands":
+        # put code for testing egohands here
+        x = 5
 
     return train_loader, val_loader, clean_val_loader
 
-def save_predictions_as_imgs(clean_loader, loader, model, folder="saved_images/", device="cuda", epochs=3, loss=0):
+def save_predictions_as_imgs(train_set, clean_loader, loader, model, folder="saved_images/", device="cuda", epochs=3, loss=0):
     model.eval()
+    if train_set == "assembly":
+        for idx, (loader_item, clean_loader_item) in enumerate(zip(loader, clean_loader)):
+            x1, y1 = clean_loader_item
+            x, y = loader_item
+            x = x.to(device=device)
 
-    for idx, (loader_item, clean_loader_item) in enumerate(zip(loader, clean_loader)):
-        x1, y1 = clean_loader_item
-        x, y = loader_item
-        x = x.to(device=device)
-
-        outputs = model(x)
-        outputs = F.interpolate(outputs, size=(1258, 1260), mode = 'nearest')
+            outputs = model(x)
+            outputs = F.interpolate(outputs, size=(1258, 1260), mode = 'nearest')
 
 
-        with torch.no_grad():
-            preds = torch.nn.functional.softmax(outputs, dim=1)
-            preds = torch.argmax(preds, dim=1).detach().cpu()
+            with torch.no_grad():
+                preds = torch.nn.functional.softmax(outputs, dim=1)
+                preds = torch.argmax(preds, dim=1).detach().cpu()
 
-        print(f"shape of preds is {preds.shape}")
+            print(f"shape of preds is {preds.shape}")
 
-        preds = preds.cpu()
+            preds = preds.cpu()
 
-        preds = (preds == torch.arange(4)[:, None, None])
-        preds = ~preds.bool()
+            preds = (preds == torch.arange(4)[:, None, None])
+            preds = ~preds.bool()
 
-        # preds= preds.swapaxes(0, 1)
-        # preds = preds.permute(1, 0, 2)
-        print(f"shape of preds is {preds.shape}")
+            # preds= preds.swapaxes(0, 1)
+            # preds = preds.permute(1, 0, 2)
+            print(f"shape of preds is {preds.shape}")
 
-        hands_with_masks = [
-            draw_segmentation_masks(img, masks=mask, alpha=0.4, colors=["red"])
-            for img, mask in zip(x1, preds)
-        ]
+            hands_with_masks = [
+                draw_segmentation_masks(img, masks=mask, alpha=0.4, colors=["red"])
+                for img, mask in zip(x1, preds)
+            ]
 
-        images = [
-            img.permute(2, 0, 1)
-            for img, mask in zip(x1, preds)
-        ]
+            images = [
+                img.permute(2, 0, 1)
+                for img, mask in zip(x1, preds)
+            ]
 
-        masks = [
-            mask
-            for img, mask in zip(x1, y)
-        ]
+            masks = [
+                mask
+                for img, mask in zip(x1, y)
+            ]
 
-        fig, axs = plt.subplots(1, 3, figsize=(10, 5))
-        axs[1].imshow(hands_with_masks[0].permute(1, 2, 0))
-        axs[1].set_title('Predicted Segmentation Mask')
-        axs[1].axis('off')
+            fig, axs = plt.subplots(1, 3, figsize=(10, 5))
+            axs[1].imshow(hands_with_masks[0].permute(1, 2, 0))
+            axs[1].set_title('Predicted Segmentation Mask')
+            axs[1].axis('off')
 
-        axs[0].imshow(images[0].permute(2, 0, 1))
-        axs[0].set_title('Image')
-        axs[0].axis('off')
+            axs[0].imshow(images[0].permute(2, 0, 1))
+            axs[0].set_title('Image')
+            axs[0].axis('off')
 
-        axs[2].imshow(masks[0])
-        axs[2].set_title('Ground Truth Mask')
-        axs[2].axis('off')
+            axs[2].imshow(masks[0])
+            axs[2].set_title('Ground Truth Mask')
+            axs[2].axis('off')
 
-        # plt.imshow(preds[0,:, :, :].permute(1, 2, 0), alpha = 0.6)
-        plt.savefig("img3.jpg", dpi=300)
-        plt.show()
+            # plt.imshow(preds[0,:, :, :].permute(1, 2, 0), alpha = 0.6)
+            plt.savefig("img3.jpg", dpi=300)
+            plt.show()
+    elif train_set=="egohands":
+        # write code for when merged with EgoHands here
+        model.eval()
+        for idx, (x, y) in enumerate(loader):
+            x = x.to(device=device)
+            print(x.shape)
+            with torch.no_grad():
+                preds = torch.sigmoid(model(x))
+                preds = (preds>0.5).float()
+            y = torch.movedim(y, 3, 1)
+            torchvision.utils.save_image(y.float(), f"{folder}{idx}.png")
+            torchvision.utils.save_image(
+                preds, f"{folder}/pred_{idx}.png"
+            )
 
     # for idx, (x, y) in enumerate(loader):
     #     x = x.to(device=device)
