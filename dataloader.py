@@ -20,7 +20,7 @@ transform2 = transforms.Compose ([
 ])
 
 class AssemblyDataset(Dataset):
-    def __init__(self, idx1, idx2, transform2=transform2):
+    def __init__(self, idx1, idx2, transform = transform, transform2=transform2):
         # data loading
         self.image_dir = r'./data_dataset_voc/JPEGImages'
         self.label_dir = r'./data_dataset_voc/SegmentationClassPNG'
@@ -52,8 +52,8 @@ class AssemblyDataset(Dataset):
         image = image.convert('RGB')
         mask = Image.open(mask_path)
 
-        print(f"Image before transform unique: {np.unique(np.array(np.asarray(image)))}")
-        print(f"Mask before transform unique: {np.unique(np.array(np.asarray(mask)))}")
+        # print(f"Image before transform unique: {np.unique(np.array(np.asarray(image)))}")
+        # print(f"Mask before transform unique: {np.unique(np.array(np.asarray(mask)))}")
 
 
         image = self.transform2(image)
@@ -61,11 +61,11 @@ class AssemblyDataset(Dataset):
         
         mask = torch.from_numpy(np.array(np.asarray(mask))).long()
 
-        print(f"Image after transform unique: {torch.unique(image)}")
-        print(f"Mask after transform unique: {torch.unique(mask)}")
+        # print(f"Image after transform unique: {torch.unique(image)}")
+        # print(f"Mask after transform unique: {torch.unique(mask)}")
 
-        print(f"Image after transform shape: {image.shape}")
-        print(f"Mask after transform shape: {mask.shape}")
+        # print(f"Image after transform shape: {image.shape}")
+        # print(f"Mask after transform shape: {mask.shape}")
 
         return image, mask
   

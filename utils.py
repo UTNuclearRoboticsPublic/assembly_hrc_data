@@ -55,11 +55,15 @@ def test(loader, model, loss, device="cuda"):
 #     transforms.PILToTensor()
 # ])
 
-transform3 = transforms.Compose([
+transform4 = transforms.Compose([
     transforms.Resize(size=(1258, 1260)),
     # lambda x: x.mul(255).round().div(255)
     transforms.ToTensor(),
     lambda x: (x * 255).int().to(torch.uint8)
+])
+
+transform3 = transforms.Compose ([
+    transforms.Resize(size=(1258, 1260), interpolation=PIL.Image.NEAREST),
 ])
 
 def get_loaders(batch_size):
@@ -69,7 +73,7 @@ def get_loaders(batch_size):
     val_ds = AssemblyDataset(0, 3)
     val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
-    clean_val_ds = AssemblyDataset(0, 3, transform2=transform3)
+    clean_val_ds = AssemblyDataset(0, 3, transform=transform3, transform2=transform4)
     clean_val_loader = DataLoader(dataset=clean_val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
     return train_loader, val_loader, clean_val_loader
@@ -89,20 +93,23 @@ def save_predictions_as_imgs(clean_loader, loader, model, folder="saved_images/"
         with torch.no_grad():
             preds = torch.nn.functional.softmax(outputs, dim=1)
             preds = torch.argmax(preds, dim=1).detach().cpu()
+            preds = torch.nn.functional.one_hot(preds, 3)
+            preds = preds.permute(0, 3, 1, 2)
+            preds = preds.bool()
 
-        print(f"shape of preds is {preds.shape}")
+        print(f"unique of preds1 is {torch.unique(preds)}")
 
         preds = preds.cpu()
 
-        preds = (preds == torch.arange(4)[:, None, None])
-        preds = ~preds.bool()
+        # preds = (preds == torch.arange(4)[:, None, None])
+        # preds = ~preds.bool()
 
         # preds= preds.swapaxes(0, 1)
         # preds = preds.permute(1, 0, 2)
         print(f"shape of preds is {preds.shape}")
 
         hands_with_masks = [
-            draw_segmentation_masks(img, masks=mask, alpha=0.4, colors=["red"])
+            draw_segmentation_masks(img, masks=mask[1:], alpha=0.4, colors=["blue", "red", "blue"])
             for img, mask in zip(x1, preds)
         ]
 
@@ -113,7 +120,7 @@ def save_predictions_as_imgs(clean_loader, loader, model, folder="saved_images/"
 
         masks = [
             mask
-            for img, mask in zip(x1, y)
+            for img, mask in zip(x1, y1)
         ]
 
         fig, axs = plt.subplots(1, 3, figsize=(10, 5))
@@ -130,7 +137,7 @@ def save_predictions_as_imgs(clean_loader, loader, model, folder="saved_images/"
         axs[2].axis('off')
 
         # plt.imshow(preds[0,:, :, :].permute(1, 2, 0), alpha = 0.6)
-        plt.savefig("img3.jpg", dpi=300)
+        plt.savefig("img31.jpg", dpi=300)
         plt.show()
 
     # for idx, (x, y) in enumerate(loader):

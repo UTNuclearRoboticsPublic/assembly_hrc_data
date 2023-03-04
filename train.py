@@ -149,12 +149,12 @@ def main():
                                                     "test_acc": test_acc}, 
                                     global_step=epoch)
 
-            # save model
-            checkpoint = {
-                "state_dict": model.state_dict(),
-                "optimizer":  optimizer.state_dict(),
-            }
-            save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
+                # save model
+                checkpoint = {
+                    "state_dict": model.state_dict(),
+                    "optimizer":  optimizer.state_dict(),
+                }
+                save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
 
         #     ensemble_predict(
         #     val_loader, nets, folder="saved_images/", device=DEVICE
