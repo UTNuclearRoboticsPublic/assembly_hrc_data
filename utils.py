@@ -15,6 +15,7 @@ import PIL
 import numpy as np
 import os
 from datetime import datetime
+import dill
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     """save_checkpoint saves a checkpoint for a trained model"""
@@ -51,15 +52,13 @@ def test(loader, model, loss, device="cuda"):
     # folder = f"./image.jpg"
     # plt.savefig(folder)
 
-# transform3 = transforms.Compose([
-#     transforms.PILToTensor()
-# ])
+def to_uint8(x):
+    return (x * 255).int().to(torch.uint8)
 
 transform3 = transforms.Compose([
     transforms.Resize(size=(1258, 1260)),
-    # lambda x: x.mul(255).round().div(255)
     transforms.ToTensor(),
-    lambda x: (x * 255).int().to(torch.uint8)
+    dill.loads(dill.dumps(to_uint8))
 ])
 
 def get_loaders(batch_size, train_set, test_set):
@@ -140,6 +139,7 @@ def save_predictions_as_imgs(train_set, clean_loader, loader, model, folder="sav
             # plt.imshow(preds[0,:, :, :].permute(1, 2, 0), alpha = 0.6)
             plt.savefig("img3.jpg", dpi=300)
             plt.show()
+
     elif train_set=="egohands":
         # write code for when merged with EgoHands here
         model.eval()
@@ -154,47 +154,6 @@ def save_predictions_as_imgs(train_set, clean_loader, loader, model, folder="sav
             torchvision.utils.save_image(
                 preds, f"{folder}/pred_{idx}.png"
             )
-
-    # for idx, (x, y) in enumerate(loader):
-    #     x = x.to(device=device)
-
-    #     with torch.no_grad():
-    #         outputs = model(x)
-    #         preds = torch.nn.functional.softmax(outputs, dim=1)
-    #         preds = torch.argmax(outputs, dim=1).detach().cpu()
-
-    #     """ Shows distribution of the predictions"""
-    #     print(f"Unique predictions are {torch.unique(preds)}")
-
-    #     folder = "saved_images/predictions/"
-
-    #     # to save prediciton image
-    #     # torchvision.utils.save_image(
-    #     #     preds, f"{folder}/pred_{idx}.png"
-    #     # )
-
-    #     """Testing shape size for fitting"""
-    #     # print("hello")
-    #     # print(f"y shape {torch.unique(y)}")
-    #     # print(f"preds shape {preds.shape}")
-    #     # print(f"preds 1 shape {preds[0].shape} and unique {torch.unique(preds[0])}")
-
-    #     """save ground truth"""
-    #     # img = TF.to_pil_image(preds)
-    #     # for j in range(x.shape[0]):
-    #     #     print(torch.unique(preds[1]))
-    #     #     plt.imshow(preds[0])
-    #     #     # plt.imshow(np.transpose(y[j], (1, 2, 0)))
-    #     #     folder = f"saved_images/ground_truth/image{j}.jpg"
-    #     #     plt.savefig(folder)
-    #     #     plt.show()
-
-    #     # fig.add_subplot(2, 2, 1)
-    #     plt.imshow(preds[0])
-    #     plt.title("Predicted Mask")
-
-    #     folder = f"./image.jpg"
-    #     plt.savefig(folder)
     model.train()
 
 def create_writer(experiment_name:str, model_name:str, extra: str=None) -> torch.utils.tensorboard.writer.SummaryWriter():

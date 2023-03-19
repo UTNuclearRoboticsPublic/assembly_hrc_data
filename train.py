@@ -21,7 +21,7 @@ NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
 PIN_MEMORY = True
-LOAD_MODEL = True
+LOAD_MODEL = False # decide if you want to use a saved model
 
 ## Choose model
 architecture="UNET" # or "UNET_Dropout" or "FastSCNN"
@@ -163,13 +163,14 @@ def main():
             }
             save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
 
-        #     ensemble_predict(
-        #     val_loader, nets, folder="saved_images/", device=DEVICE
-        # )
-
             save_predictions_as_imgs(
             train_set, clean_val_loader, val_loader, model, folder="saved_images/", device=DEVICE
         )
+    if NUM_NETS > 1:
+        ensemble_predict(
+            val_loader, nets, folder="saved_images/", device=DEVICE
+        )
+        
     writer.close()
         
 if __name__ == "__main__":
