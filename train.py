@@ -1,6 +1,7 @@
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from torchmetrics.classification import MulticlassJaccardIndex
+from torchmetrics.classification import BinaryJaccardIndex
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
@@ -44,44 +45,75 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
     loop = tqdm(loader)
 
-    for index, batch in enumerate(loop):
-        data, targets = batch
-        data = data.to(device=DEVICE)
-        targets = targets.to(device=DEVICE)
-        model = model.to(device=DEVICE)
+    if train_set=="assembly":
+        for index, batch in enumerate(loop):
+            data, targets = batch
+            data = data.to(device=DEVICE)
+            targets = targets.to(device=DEVICE)
+            model = model.to(device=DEVICE)
 
-        weight1 = torch.sum(targets==0)
-        weight2 = torch.sum(targets==1)
-        weight3 = torch.sum(targets==2)
+            weight1 = torch.sum(targets==0)
+            weight2 = torch.sum(targets==1)
+            weight3 = torch.sum(targets==2)
 
-        weights = torch.FloatTensor([weight1, weight2, weight3])
-        weights = torch.div(1.0, weights).to(device=DEVICE)
-        loss_fn = nn.CrossEntropyLoss(weight=weights)
+            weights = torch.FloatTensor([weight1, weight2, weight3])
+            weights = torch.div(1.0, weights).to(device=DEVICE)
+            loss_fn = nn.CrossEntropyLoss(weight=weights)
 
-        
+            
 
-        with torch.cuda.amp.autocast():
-            predictions = model(data)
+            with torch.cuda.amp.autocast():
+                predictions = model(data)
 
-            ## just removed long
-            loss = loss_fn(predictions, targets.long())
+                ## just removed long
+                loss = loss_fn(predictions, targets.long())
 
-            train_loss+=loss.item()
+                train_loss+=loss.item()
 
-            ## train accuracy and loss writing
-            predictions = torch.argmax(predictions, dim=1).detach() # removed an addition .cpu() at the end
-            predictions = predictions.to(device=DEVICE)
-            metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
-            train_acc += metric(predictions, targets.long()) 
+                ## train accuracy and loss writing
+                predictions = torch.argmax(predictions, dim=1).detach() # removed an addition .cpu() at the end
+                predictions = predictions.to(device=DEVICE)
+                metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
+                train_acc += metric(predictions, targets.long()) 
 
-        # backward
-        optimizer.zero_grad()
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+            # backward
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
-        # update tqdm loop
-        loop.set_postfix(loss=loss.item())
+            # update tqdm loop
+            loop.set_postfix(loss=loss.item())
+    
+    elif train_set == "egohands":
+        for batch_idx, (data, targets) in enumerate(loop):
+            data = data.to(device=DEVICE)
+            targets = targets.float().unsqueeze(1).to(device=DEVICE)
+            targets = targets[:, :, :, :, 0]/255
+
+            # forward
+            with torch.cuda.amp.autocast():
+                predictions = model(data)
+                loss = loss_fn(predictions, targets)
+
+                # for train accuracy and loss tracking
+                preds = torch.sigmoid(predictions)
+                preds = (preds>0.5).float()
+                y2 = torch.movedim(targets, 3, 1).float()
+                metric = BinaryJaccardIndex()
+                train_acc += metric(predictions, targets)
+                train_loss += loss
+
+
+
+            # backward
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+            # update tqdm loop
+            loop.set_postfix(loss=loss.item())
 
     train_loss = train_loss/len(loader)
     train_acc = train_acc / len(loader)

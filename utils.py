@@ -10,6 +10,8 @@ from torch.utils.data import DataLoader
 from dataloader import AssemblyDataset
 from torch import nn
 import torch.nn.functional as F
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 import matplotlib.pyplot as plt
 import PIL
 import numpy as np
@@ -65,9 +67,21 @@ def get_loaders(batch_size, train_set, test_set):
     if train_set=="assembly":
         train_ds = AssemblyDataset(0, 3)
         train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
+
     elif train_set=="egohands":
-        # write egohands code here for the training set
-        x = 5
+            # training dataset
+            train_ds = EgoHandsDataset(
+                get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'B', 'Partner', 'S'),
+                train_transform
+            )
+            train_loader = DataLoader(
+                train_ds,
+                batch_size=batch_size,
+                num_workers=4,
+                pin_memory=True,
+                shuffle=True,
+            )
+
     if test_set=="assembly":
         val_ds = AssemblyDataset(0, 3)
         val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
@@ -75,9 +89,53 @@ def get_loaders(batch_size, train_set, test_set):
         clean_val_ds = AssemblyDataset(0, 3, transform2=transform3)
         clean_val_loader = DataLoader(dataset=clean_val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
-    elif train_set == "egohands":
-        # put code for testing egohands here
-        x = 5
+    elif test_set == "egohands":
+        # validation dataset
+
+        IMAGE_HEIGHT = 90
+        IMAGE_WIDTH = 160
+
+        # we should change these transforms to what we will mention in the paper as not to skew the data
+        train_transform = A.Compose(
+            [
+                A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+                A.Rotate(limit=35, p=1.0),
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.1),
+                A.Normalize(
+                    mean=[0.0, 0.0, 0.0],
+                    std=[1.0, 1.0, 1.0],
+                    max_pixel_value=255.0,
+                ),
+                ToTensorV2(),
+            ],
+        )
+
+        val_transforms = A.Compose(
+            [
+                A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+                A.Normalize(
+                    mean=[0.0, 0.0, 0.0],
+                    std=[1.0, 1.0, 1.0],
+                    max_pixel_value=255.0,
+                ),
+                ToTensorV2(),
+            ],
+        )
+
+        val_ds = EgoHandsDataset(
+            # switched S and B
+            get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'S', 'Partner', 'B'),
+            val_transform
+        )
+
+        val_loader = DataLoader(
+            val_ds,
+            batch_size=batch_size,
+            num_workers=4,
+            pin_memory=True,
+            shuffle=False,
+        )
 
     return train_loader, val_loader, clean_val_loader
 
@@ -151,9 +209,11 @@ def save_predictions_as_imgs(train_set, clean_loader, loader, model, folder="sav
                 preds = (preds>0.5).float()
             y = torch.movedim(y, 3, 1)
             torchvision.utils.save_image(y.float(), f"{folder}{idx}.png")
+
             torchvision.utils.save_image(
                 preds, f"{folder}/pred_{idx}.png"
             )
+
     model.train()
 
 def create_writer(experiment_name:str, model_name:str, extra: str=None) -> torch.utils.tensorboard.writer.SummaryWriter():
