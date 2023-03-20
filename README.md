@@ -5,7 +5,9 @@ Labelled data from HRC experiments to be used for semantic hand segmentation. In
 
 ## Training model
 
-Run `train.py`. Queried dataset can be adjusted in `utils.py`.
+Run `train.py`. 
+
+At the top of `train.py` you can find parameters to adjust for training. Most relevant, you can set NUM_NETS to greater than 1 if you want to use deep ensembles, and can choose the model architecture you want to use. Under that, you may adjust the dataset you want to use (both for training and testing) as shown in the file. *Currently there is no functionality for using the EgoHands dataset, as the repo with that needs to be added as a submodule. This feature will be added soon.*
 
 
 ## Converting LabelMe Annotations to Trainable Dataset
