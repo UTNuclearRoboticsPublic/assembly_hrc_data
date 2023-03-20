@@ -19,6 +19,10 @@ import os
 from datetime import datetime
 import dill
 
+from EgoHands_Dataset.get_meta_by import get_meta_by
+from EgoHands_Dataset.dataset import EgoHandsDataset
+
+
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     """save_checkpoint saves a checkpoint for a trained model"""
     print("=> Saving checkpoint")
@@ -69,32 +73,7 @@ def get_loaders(batch_size, train_set, test_set):
         train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
 
     elif train_set=="egohands":
-            # training dataset
-            train_ds = EgoHandsDataset(
-                get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'B', 'Partner', 'S'),
-                train_transform
-            )
-            train_loader = DataLoader(
-                train_ds,
-                batch_size=batch_size,
-                num_workers=4,
-                pin_memory=True,
-                shuffle=True,
-            )
-
-    if test_set=="assembly":
-        val_ds = AssemblyDataset(0, 3)
-        val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
-
-        clean_val_ds = AssemblyDataset(0, 3, transform2=transform3)
-        clean_val_loader = DataLoader(dataset=clean_val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
-
-    elif test_set == "egohands":
-        # validation dataset
-
-        IMAGE_HEIGHT = 90
-        IMAGE_WIDTH = 160
-
+            
         # we should change these transforms to what we will mention in the paper as not to skew the data
         train_transform = A.Compose(
             [
@@ -110,6 +89,32 @@ def get_loaders(batch_size, train_set, test_set):
                 ToTensorV2(),
             ],
         )
+        
+        # training dataset
+        train_ds = EgoHandsDataset(
+            get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'B', 'Partner', 'S'),
+            train_transform
+        )
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=batch_size,
+            num_workers=4,
+            pin_memory=True,
+            shuffle=True,
+        )
+
+    if test_set=="assembly":
+        val_ds = AssemblyDataset(0, 3)
+        val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
+
+        clean_val_ds = AssemblyDataset(0, 3, transform2=transform3)
+        clean_val_loader = DataLoader(dataset=clean_val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
+
+    elif test_set == "egohands":
+        # validation dataset
+
+        IMAGE_HEIGHT = 90
+        IMAGE_WIDTH = 160
 
         val_transforms = A.Compose(
             [
@@ -126,7 +131,7 @@ def get_loaders(batch_size, train_set, test_set):
         val_ds = EgoHandsDataset(
             # switched S and B
             get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'S', 'Partner', 'B'),
-            val_transform
+            val_transforms
         )
 
         val_loader = DataLoader(
