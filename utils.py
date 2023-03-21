@@ -34,7 +34,7 @@ def load_checkpoint(checkpoint, model):
     model.load_state_dict(checkpoint["state_dict"])
 
 ## tracking test values
-def test(loader, model, loss, device="cuda"):
+def test(architecture, loader, model, loss, device="cuda"):
     model.eval()
 
     test_loss, test_acc  = 0, 0
@@ -48,9 +48,17 @@ def test(loader, model, loss, device="cuda"):
             test_loss+=batch_loss.item()
 
             test_outputs = torch.argmax(test_outputs, dim=1).detach() ## removed .cpu
+
+            # Uncomment when we do all binary
+            # test_outputs = torch.sigmoid(outputs)
+            # test_outputs = (preds>0.5).float()
+
+            if architecture == "FastSCNN":
+                test_outputs = test_outputs[0]
+
             test_acc += metric(test_outputs, y.long()) 
             # add test acc
-        
+    
     test_loss = test_loss/len(loader)
     test_acc = test_acc/len(loader)
     return test_loss, test_acc
@@ -147,21 +155,30 @@ def get_loaders(batch_size, train_set, test_set):
 
     return train_loader, val_loader, clean_val_loader
 
-def save_predictions_as_imgs(train_set, clean_loader, loader, model, folder="saved_images/", device="cuda", epochs=3, loss=0):
+def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture, folder="saved_images/", device="cuda", epochs=3, loss=0):
     model.eval()
-    if train_set == "assembly":
+    if test_set == "assembly":
         for idx, (loader_item, clean_loader_item) in enumerate(zip(loader, clean_loader)):
             x1, y1 = clean_loader_item
             x, y = loader_item
             x = x.to(device=device)
 
             outputs = model(x)
+
+            if architecture == "FastSCNN":
+                outputs = outputs[0]
             outputs = F.interpolate(outputs, size=(1258, 1260), mode = 'nearest')
+
+
 
 
             with torch.no_grad():
                 preds = torch.nn.functional.softmax(outputs, dim=1)
                 preds = torch.argmax(preds, dim=1).detach().cpu()
+
+                # We should uncomment this and comment above when we go for binary classification
+                # preds = torch.sigmoid(outputs)
+                # preds = (preds>0.5).float()
 
             print(f"shape of preds is {preds.shape}")
 
@@ -206,13 +223,16 @@ def save_predictions_as_imgs(train_set, clean_loader, loader, model, folder="sav
             plt.savefig("img3.jpg", dpi=300)
             plt.show()
 
-    elif train_set=="egohands":
+    elif test_set=="egohands":
         # write code for when merged with EgoHands here
         model.eval()
         for idx, (x, y) in enumerate(loader):
             x = x.to(device=device)
             print(x.shape)
             with torch.no_grad():
+                outputs = model(x)
+                if architecture == "FastSCNN":
+                    outputs = outputs[0]
                 preds = torch.sigmoid(model(x))
                 preds = (preds>0.5).float()
             y = torch.movedim(y, 3, 1)
@@ -239,7 +259,7 @@ def create_writer(experiment_name:str, model_name:str, extra: str=None) -> torch
     return SummaryWriter(log_dir=log_dir)
 
 
-def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
+def ensemble_predict(test_set, loader, models, architecture, folder="saved_images/", device="cuda"):
     predictions = []
     for model in models:
         model.eval()
@@ -249,6 +269,9 @@ def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
 
             with torch.no_grad():
                 outputs = model(x)
+            
+            if architecture == "FastSCNN":
+                outputs = outputs[0]
 
             folder = "saved_images/predictions/"
         
@@ -256,12 +279,32 @@ def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
         outputs = outputs.cpu().detach().numpy()
         predictions.append(outputs)
         
-    outputs = np.average(predictions, axis=0)
-    outputs = torch.from_numpy(outputs)
-    preds = torch.nn.functional.softmax(outputs, dim=1)
-    preds = torch.argmax(outputs, dim=1).detach().cpu()
+    if test_set == 'assemblyhrc':
+        outputs = np.average(predictions, axis=0)
+        outputs = torch.from_numpy(outputs)
+        preds = torch.nn.functional.softmax(outputs, dim=1)
+        preds = torch.argmax(outputs, dim=1).detach().cpu()
 
-    plt.imshow(preds[0])
-    folder = f"./image2.jpg"
-    plt.savefig(folder)
+        # uncomment to make it all binary classification
+        # preds = torch.sigmoid(outputs)
+        # preds = (preds>0.5).float()
+
+        plt.imshow(preds[0])
+        folder = f"./image2.jpg"
+        plt.savefig(folder)
+
+    elif test_set=="egohands":
+        # outputs = outputs.detach.numpy()
+        outputs = outputs.cpu().detach().numpy()
+        predictions.append(outputs)
+
+        with torch.no_grad():
+            outputs = np.average(predictions, axis=0)
+            outputs = torch.from_numpy(outputs)
+            preds = torch.sigmoid(outputs)
+            preds = (preds>0.5).float()
+
+        plt.imshow(preds[0])
+        folder = f"./image2.jpg"
+        plt.savefig(folder)
     

@@ -170,7 +170,7 @@ def main():
             if LOAD_MODEL is not True:
                 model.train()
                 train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
-            test_loss, test_acc = test(val_loader, model, loss_fn)
+            test_loss, test_acc = test(architecture, val_loader, model, loss_fn)
 
 
             if LOAD_MODEL is not True:
@@ -198,11 +198,11 @@ def main():
             save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
 
             save_predictions_as_imgs(
-            train_set, clean_val_loader, val_loader, model, folder="saved_images/", device=DEVICE
+            test_set, clean_val_loader, val_loader, model, architecture, folder="saved_images/", device=DEVICE
         )
     if NUM_NETS > 1:
         ensemble_predict(
-            val_loader, nets, folder="saved_images/", device=DEVICE
+            test_set, val_loader, nets, architecure, folder="saved_images/", device=DEVICE
         )
         
     writer.close()
