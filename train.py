@@ -11,6 +11,7 @@ from UNET_Dropout import UNET_Dropout
 import numpy as np
 from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer, ensemble_predict)
 import matplotlib as plt
+from fast_scnn_model import FastSCNN
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
@@ -60,10 +61,11 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
             weights = torch.div(1.0, weights).to(device=DEVICE)
             loss_fn = nn.CrossEntropyLoss(weight=weights)
 
-            
-
             with torch.cuda.amp.autocast():
                 predictions = model(data)
+
+                if architecture=="FastSCNN":
+                    predictions = predictions[0]
 
                 ## just removed long
                 loss = loss_fn(predictions, targets.long())
@@ -132,7 +134,7 @@ def main():
             net = UNET(in_channels=3, out_channels=3)
         elif architecture == "FastSCNN":
             ## adjust this when adding EgoHands to the Model
-            net = UNET(in_channels=3, out_channels=3)
+            net = FastSCNN(in_channels=3, out_channels=1).to(DEVICE)
         nets.append(net)
         optimizers.append(optim.Adam(net.parameters(), lr=LEARNING_RATE))
 

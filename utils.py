@@ -74,6 +74,9 @@ def get_loaders(batch_size, train_set, test_set):
 
     elif train_set=="egohands":
             
+        IMAGE_HEIGHT = 161 #90
+        IMAGE_WIDTH = 161 #160
+
         # we should change these transforms to what we will mention in the paper as not to skew the data
         train_transform = A.Compose(
             [
@@ -113,8 +116,8 @@ def get_loaders(batch_size, train_set, test_set):
     elif test_set == "egohands":
         # validation dataset
 
-        IMAGE_HEIGHT = 90
-        IMAGE_WIDTH = 160
+        IMAGE_HEIGHT = 161 #90
+        IMAGE_WIDTH = 161 #160
 
         val_transforms = A.Compose(
             [
