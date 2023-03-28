@@ -52,8 +52,8 @@ class AssemblyDataset(Dataset):
         image = image.convert('RGB')
         mask = Image.open(mask_path)
 
-        print(f"Image before transform unique: {np.unique(np.array(np.asarray(image)))}")
-        print(f"Mask before transform unique: {np.unique(np.array(np.asarray(mask)))}")
+        # print(f"Image before transform unique: {np.unique(np.array(np.asarray(image)))}")
+        # print(f"Mask before transform unique: {np.unique(np.array(np.asarray(mask)))}")
 
 
         image = self.transform2(image)
@@ -61,11 +61,11 @@ class AssemblyDataset(Dataset):
         
         mask = torch.from_numpy(np.array(np.asarray(mask))).long()
 
-        print(f"Image after transform unique: {torch.unique(image)}")
-        print(f"Mask after transform unique: {torch.unique(mask)}")
+        # print(f"Image after transform unique: {torch.unique(image)}")
+        # print(f"Mask after transform unique: {torch.unique(mask)}")
 
-        print(f"Image after transform shape: {image.shape}")
-        print(f"Mask after transform shape: {mask.shape}")
+        # print(f"Image after transform shape: {image.shape}")
+        # print(f"Mask after transform shape: {mask.shape}")
 
         return image, mask
   
