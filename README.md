@@ -3,6 +3,11 @@ Labelled data from HRC experiments to be used for semantic hand segmentation. In
 
 ![sample](samplevisual.png)
 
+## Branch Structure for FIRE
+All of the current work is currently in the `shondle/with-egohands` branch, although not all of the code works.
+
+Working additions are in main branch, but this is not the most updated code. Most of other branches work has been merged into the `shondle/with-egohands` branch, and if not, it is experimental.  
+
 ## Training model
 
 Run `train.py`. 
