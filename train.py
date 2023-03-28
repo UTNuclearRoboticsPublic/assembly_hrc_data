@@ -48,18 +48,22 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
     if train_set=="assembly":
         for index, batch in enumerate(loop):
+            
             data, targets = batch
             data = data.to(device=DEVICE)
             targets = targets.to(device=DEVICE)
             model = model.to(device=DEVICE)
 
-            weight1 = torch.sum(targets==0)
-            weight2 = torch.sum(targets==1)
-            weight3 = torch.sum(targets==2)
+            # removed because now we are doing Binary Only
 
-            weights = torch.FloatTensor([weight1, weight2, weight3])
-            weights = torch.div(1.0, weights).to(device=DEVICE)
-            loss_fn = nn.CrossEntropyLoss(weight=weights)
+            # weight1 = torch.sum(targets==0)
+            # weight2 = torch.sum(targets==1)
+            # weight3 = torch.sum(targets==2)
+
+            # weights = torch.FloatTensor([weight1, weight2, weight3])
+            # weights = torch.div(1.0, weights).to(device=DEVICE)
+            # loss_fn = nn.CrossEntropyLoss(weight=weights)
+
 
             with torch.cuda.amp.autocast():
                 predictions = model(data)
@@ -72,11 +76,18 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
                 train_loss+=loss.item()
 
+                predictions = torch.sigmoid(predictions)
+                preds = (preds>0.5).float()
+                metric = BinaryJaccardIndex()
+                train_acc += metric(preds, targets)
+                train_loss += loss
+
+
                 ## train accuracy and loss writing
-                predictions = torch.argmax(predictions, dim=1).detach() # removed an addition .cpu() at the end
-                predictions = predictions.to(device=DEVICE)
-                metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
-                train_acc += metric(predictions, targets.long()) 
+                # predictions = torch.argmax(predictions, dim=1).detach() # removed an addition .cpu() at the end
+                # predictions = predictions.to(device=DEVICE)
+                # metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
+                # train_acc += metric(predictions, targets.long()) 
 
             # backward
             optimizer.zero_grad()
@@ -138,7 +149,8 @@ def main():
         nets.append(net)
         optimizers.append(optim.Adam(net.parameters(), lr=LEARNING_RATE))
 
-    loss_fn = nn.CrossEntropyLoss()
+    # loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.BCEWithLogitsLoss()
 
     train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE, train_set, test_set)
 
