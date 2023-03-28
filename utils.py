@@ -153,6 +153,19 @@ def get_loaders(batch_size, train_set, test_set):
             shuffle=False,
         )
 
+        clean_val_ds = EgoHandsDataset(
+            # switched S and B
+            get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'S', 'Partner', 'B')
+        )
+
+        clean_val_loader = DataLoader(
+            clean_val_ds,
+            batch_size=batch_size,
+            num_workers=4,
+            pin_memory=True,
+            shuffle=False
+        )
+
     return train_loader, val_loader, clean_val_loader
 
 def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture, folder="saved_images/", device="cuda", epochs=3, loss=0):
