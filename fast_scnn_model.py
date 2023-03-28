@@ -20,7 +20,7 @@ class FastSCNN(nn.Module):
         self.learning_to_downsample = LearningToDownsample(32, 48, 64)
         self.global_feature_extractor = GlobalFeatureExtractor(64, [64, 96, 128], 128, 6, [3, 3, 3])
         self.feature_fusion = FeatureFusionModule(64, 128, 128)
-        self.classifier = Classifier(128, out_channels)
+        self.classifier = Classifer(128, out_channels)
         if self.aux:
             self.auxlayer = nn.Sequential(
                 nn.Conv2d(64, 32, 3, padding=1, bias=False),
@@ -208,3 +208,67 @@ class FeatureFusionModule(nn.Module):
         self.conv_higher_res = nn.Sequential(
             nn.Conv2d(highter_in_channels, out_channels, 1),
             nn.BatchNorm2d(out_channels)
+        )
+        self.relu = nn.ReLU(True)
+
+    def forward(self, higher_res_feature, lower_res_feature):
+        lower_res_feature = F.interpolate(lower_res_feature, scale_factor=4, mode='bilinear', align_corners=True)
+        lower_res_feature = self.dwconv(lower_res_feature)
+        lower_res_feature = self.conv_lower_res(lower_res_feature)
+
+        higher_res_feature = self.conv_higher_res(higher_res_feature)
+        out = higher_res_feature + lower_res_feature
+        return self.relu(out)
+
+
+class Classifer(nn.Module):
+    """Classifer"""
+
+    def __init__(self, dw_channels, num_classes, stride=1, **kwargs):
+        super(Classifer, self).__init__()
+        self.dsconv1 = _DSConv(dw_channels, dw_channels, stride)
+        self.dsconv2 = _DSConv(dw_channels, dw_channels, stride)
+        self.conv = nn.Sequential(
+            nn.Dropout(0.1),
+            nn.Conv2d(dw_channels, num_classes, 1)
+        )
+
+    def forward(self, x):
+        x = self.dsconv1(x)
+        x = self.dsconv2(x)
+        x = self.conv(x)
+        return x
+
+
+# def get_fast_scnn(dataset='citys', pretrained=False, root='./weights', map_cpu=False, **kwargs):
+#     acronyms = {
+#         'pascal_voc': 'voc',
+#         'pascal_aug': 'voc',
+#         'ade20k': 'ade',
+#         'coco': 'coco',
+#         'citys': 'citys',
+#     }
+#     from data_loader import datasets
+#     model = FastSCNN(datasets[dataset].NUM_CLASS, **kwargs)
+#     if pretrained:
+#         if(map_cpu):
+#             model.load_state_dict(torch.load(os.path.join(root, 'fast_scnn_%s.pth' % acronyms[dataset]), map_location='cpu'))
+#         else:
+#             model.load_state_dict(torch.load(os.path.join(root, 'fast_scnn_%s.pth' % acronyms[dataset])))
+#     return model
+
+
+# if __name__ == '__main__':
+#     img = torch.randn(2, 3, 256, 512)
+#     model = get_fast_scnn('citys')
+#     outputs = model(img)
+
+def test():
+    x = torch.randn((3, 3, 161, 161))
+    model = FastSCNN(in_channels=3,  out_channels=1) 
+    preds = model(x)
+    print(preds[0].shape)
+    print(preds[0].shape == x.shape)
+
+if __name__ == "__main__":
+    test()
