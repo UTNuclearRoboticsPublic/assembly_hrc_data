@@ -29,8 +29,8 @@ LOAD_MODEL = False # decide if you want to use a saved model
 architecture="UNET" # or "UNET_Dropout" or "FastSCNN"
 
 ## Choose how you will label the experiment
-train_set = "assembly" # either "assembly" or "egohands"
-test_set = "assembly" # either "assembly" or "egohands"
+train_set = "egohands" # either "assembly" or "egohands"
+test_set = "egohands" # either "assembly" or "egohands"
 
 
 ## Auto-set values that will be used to save your experiment
@@ -113,7 +113,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
                 preds = torch.sigmoid(predictions)
                 preds = (preds>0.5).float()
                 y2 = torch.movedim(targets, 3, 1).float()
-                metric = BinaryJaccardIndex()
+                metric = BinaryJaccardIndex().to(device=DEVICE)
                 train_acc += metric(predictions, targets)
                 train_loss += loss
 
@@ -142,7 +142,7 @@ def main():
         if architecture == "UNET_Dropout":
             net = UNET_Dropout(in_channels=3, out_channels=3, droprate=0.5)
         elif architecture == "UNET":
-            net = UNET(in_channels=3, out_channels=3)
+            net = UNET(in_channels=3, out_channels=1)
         elif architecture == "FastSCNN":
             ## adjust this when adding EgoHands to the Model
             net = FastSCNN(in_channels=3, out_channels=1).to(DEVICE)
@@ -182,7 +182,7 @@ def main():
             if LOAD_MODEL is not True:
                 model.train()
                 train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
-            test_loss, test_acc = test(architecture, val_loader, model, loss_fn)
+            test_loss, test_acc = test(architecture, val_loader, model, loss_fn, test_set)
 
 
             if LOAD_MODEL is not True:
