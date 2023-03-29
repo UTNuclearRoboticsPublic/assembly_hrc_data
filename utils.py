@@ -3,6 +3,7 @@
 import torch
 import torchvision
 from torchmetrics.classification import MulticlassJaccardIndex
+from torchmetrics.classification import BinaryJaccardIndex
 from torch.utils.tensorboard import SummaryWriter
 import torchvision.transforms as transforms
 from torchvision.utils import draw_segmentation_masks
@@ -19,6 +20,9 @@ import os
 from datetime import datetime
 import dill
 
+# import EgoHands_Dataset.get_segmentation_mask
+# import EgoHands_Dataset.get_frame_path
+# import EgoHands_Dataset.get_training_imgs
 from EgoHands_Dataset.get_meta_by import get_meta_by
 from EgoHands_Dataset.dataset import EgoHandsDataset
 
@@ -34,30 +38,53 @@ def load_checkpoint(checkpoint, model):
     model.load_state_dict(checkpoint["state_dict"])
 
 ## tracking test values
-def test(architecture, loader, model, loss, device="cuda"):
+def test(architecture, loader, model, loss, test_set, device="cuda"):
     model.eval()
-
     test_loss, test_acc  = 0, 0
-    metric = MulticlassJaccardIndex(num_classes=3).to(device=device)
+    metric = BinaryJaccardIndex().to(device=device)
 
-    with torch.inference_mode():
-        for idx, (X, y) in enumerate(loader):
-            X, y = X.to(device=device), y.to(device=device)
-            test_outputs = model(X)
-            batch_loss = loss(test_outputs, y.long())
-            test_loss+=batch_loss.item()
 
-            test_outputs = torch.argmax(test_outputs, dim=1).detach() ## removed .cpu
+    if test_set == "egohands":
+        with torch.inference_mode():
+            for batch_idx, (data, targets) in enumerate(loader):
+                    data = data.to(device=device)
+                    targets = targets.float().unsqueeze(1).to(device=device)
+                    targets = targets[:, :, :, :, 0]/255
+                    predictions = model(data)
+                    batch_loss = loss(predictions, targets)
 
-            # Uncomment when we do all binary
-            # test_outputs = torch.sigmoid(outputs)
-            # test_outputs = (preds>0.5).float()
+                    test_loss+=batch_loss.item()
+                    preds = torch.sigmoid(predictions)
+                    preds = (preds>0.5).float()
+                    y2 = torch.movedim(targets, 3, 1).float()
 
-            if architecture == "FastSCNN":
-                test_outputs = test_outputs[0]
+                    # should this be y2 or preds or predictions or should movedim go earlier
+                    test_acc +=metric(predictions, targets)
 
-            test_acc += metric(test_outputs, y.long()) 
-            # add test acc
+                    
+
+    elif test_set == "assembly":
+
+        metric = MulticlassJaccardIndex(num_classes=3).to(device=device)
+
+        with torch.inference_mode():
+            for idx, (X, y) in enumerate(loader):
+                X, y = X.to(device=device), y.to(device=device)
+                test_outputs = model(X)
+                batch_loss = loss(test_outputs, y.long())
+                test_loss+=batch_loss.item()
+
+                test_outputs = torch.argmax(test_outputs, dim=1).detach() ## removed .cpu
+
+                # Uncomment when we do all binary
+                # test_outputs = torch.sigmoid(outputs)
+                # test_outputs = (preds>0.5).float()
+
+                if architecture == "FastSCNN":
+                    test_outputs = test_outputs[0]
+
+                test_acc += metric(test_outputs, y.long()) 
+                # add test acc
     
     test_loss = test_loss/len(loader)
     test_acc = test_acc/len(loader)
@@ -252,7 +279,7 @@ def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture
             torchvision.utils.save_image(y.float(), f"{folder}{idx}.png")
 
             torchvision.utils.save_image(
-                preds, f"{folder}/pred_{idx}.png"
+                preds, f"{folder}/egopred_{idx}.png"
             )
 
     model.train()
