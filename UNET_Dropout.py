@@ -3,35 +3,13 @@
 import warnings
 warnings.filterwarnings("ignore")
 
-# import numpy as np
-# import pandas as pd
-# import time
-# import h5py
-# from scipy.ndimage.interpolation import rotate
-
-# import matplotlib
-# import matplotlib.pyplot as plt
-# import matplotlib.image as mpimg
-# import matplotlib.gridspec as gridspec
-
-# import seaborn as sns
-
 import torch
-# import torchvision
-# from torchvision import datasets
-# from torchvision import transforms
-# from torch.autograd import Variable
 import torch.nn as nn
-# import torch.nn.functional as F
 import torchvision.transforms.functional as TF
-# import torch.optim as optim
-# from torch.utils.data.sampler import SubsetRandomSampler
-
-# import pymc3 as pm
 
 
 class DoubleConv(nn.Module):
-    ## added droprate
+    ## added droprate for dropout functionality
     def __init__(self, in_channels, out_channels, droprate):
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(

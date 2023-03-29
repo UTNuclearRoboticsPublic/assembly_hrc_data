@@ -1,0 +1,3 @@
+[submodule "EgoHands_Dataset"]
+	path = EgoHands_Dataset
+	url = https://github.com/shondle/EgoHands_Dataset.git

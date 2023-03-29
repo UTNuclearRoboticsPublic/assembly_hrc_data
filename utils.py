@@ -10,11 +10,18 @@ from torch.utils.data import DataLoader
 from dataloader import AssemblyDataset
 from torch import nn
 import torch.nn.functional as F
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 import matplotlib.pyplot as plt
 import PIL
 import numpy as np
 import os
 from datetime import datetime
+import dill
+
+from EgoHands_Dataset.get_meta_by import get_meta_by
+from EgoHands_Dataset.dataset import EgoHandsDataset
+
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     """save_checkpoint saves a checkpoint for a trained model"""
@@ -27,7 +34,7 @@ def load_checkpoint(checkpoint, model):
     model.load_state_dict(checkpoint["state_dict"])
 
 ## tracking test values
-def test(loader, model, loss, device="cuda"):
+def test(architecture, loader, model, loss, device="cuda"):
     model.eval()
 
     test_loss, test_acc  = 0, 0
@@ -41,9 +48,17 @@ def test(loader, model, loss, device="cuda"):
             test_loss+=batch_loss.item()
 
             test_outputs = torch.argmax(test_outputs, dim=1).detach() ## removed .cpu
+
+            # Uncomment when we do all binary
+            # test_outputs = torch.sigmoid(outputs)
+            # test_outputs = (preds>0.5).float()
+
+            if architecture == "FastSCNN":
+                test_outputs = test_outputs[0]
+
             test_acc += metric(test_outputs, y.long()) 
             # add test acc
-        
+    
     test_loss = test_loss/len(loader)
     test_acc = test_acc/len(loader)
     return test_loss, test_acc
@@ -51,24 +66,54 @@ def test(loader, model, loss, device="cuda"):
     # folder = f"./image.jpg"
     # plt.savefig(folder)
 
-# transform3 = transforms.Compose([
-#     transforms.PILToTensor()
-# ])
+def to_uint8(x):
+    return (x * 255).int().to(torch.uint8)
 
 transform3 = transforms.Compose([
     transforms.Resize(size=(1258, 1260)),
-    # lambda x: x.mul(255).round().div(255)
     transforms.ToTensor(),
-    lambda x: (x * 255).int().to(torch.uint8)
+    dill.loads(dill.dumps(to_uint8))
 ])
 
 def get_loaders(batch_size, train_set, test_set):
     if train_set=="assembly":
         train_ds = AssemblyDataset(0, 3)
         train_loader = DataLoader(dataset=train_ds, batch_size = batch_size, num_workers=4, shuffle = True)
+
     elif train_set=="egohands":
-        # write egohands code here for the training set
-        x = 5
+            
+        IMAGE_HEIGHT = 161 #90
+        IMAGE_WIDTH = 161 #160
+
+        # we should change these transforms to what we will mention in the paper as not to skew the data
+        train_transform = A.Compose(
+            [
+                A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+                A.Rotate(limit=35, p=1.0),
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.1),
+                A.Normalize(
+                    mean=[0.0, 0.0, 0.0],
+                    std=[1.0, 1.0, 1.0],
+                    max_pixel_value=255.0,
+                ),
+                ToTensorV2(),
+            ],
+        )
+        
+        # training dataset
+        train_ds = EgoHandsDataset(
+            get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'B', 'Partner', 'S'),
+            train_transform
+        )
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=batch_size,
+            num_workers=4,
+            pin_memory=True,
+            shuffle=True,
+        )
+
     if test_set=="assembly":
         val_ds = AssemblyDataset(0, 3)
         val_loader = DataLoader(dataset=val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
@@ -76,27 +121,77 @@ def get_loaders(batch_size, train_set, test_set):
         clean_val_ds = AssemblyDataset(0, 3, transform2=transform3)
         clean_val_loader = DataLoader(dataset=clean_val_ds, batch_size = batch_size, num_workers=4, shuffle = False)
 
-    elif train_set == "egohands":
-        # put code for testing egohands here
-        x = 5
+    elif test_set == "egohands":
+        # validation dataset
+
+        IMAGE_HEIGHT = 161 #90
+        IMAGE_WIDTH = 161 #160
+
+        val_transforms = A.Compose(
+            [
+                A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+                A.Normalize(
+                    mean=[0.0, 0.0, 0.0],
+                    std=[1.0, 1.0, 1.0],
+                    max_pixel_value=255.0,
+                ),
+                ToTensorV2(),
+            ],
+        )
+
+        val_ds = EgoHandsDataset(
+            # switched S and B
+            get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'S', 'Partner', 'B'),
+            val_transforms
+        )
+
+        val_loader = DataLoader(
+            val_ds,
+            batch_size=batch_size,
+            num_workers=4,
+            pin_memory=True,
+            shuffle=False,
+        )
+
+        clean_val_ds = EgoHandsDataset(
+            # switched S and B
+            get_meta_by('Location', 'COURTYARD', 'Activity', 'PUZZLE', 'Viewer', 'S', 'Partner', 'B')
+        )
+
+        clean_val_loader = DataLoader(
+            clean_val_ds,
+            batch_size=batch_size,
+            num_workers=4,
+            pin_memory=True,
+            shuffle=False
+        )
 
     return train_loader, val_loader, clean_val_loader
 
-def save_predictions_as_imgs(train_set, clean_loader, loader, model, folder="saved_images/", device="cuda", epochs=3, loss=0):
+def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture, folder="saved_images/", device="cuda", epochs=3, loss=0):
     model.eval()
-    if train_set == "assembly":
+    if test_set == "assembly":
         for idx, (loader_item, clean_loader_item) in enumerate(zip(loader, clean_loader)):
             x1, y1 = clean_loader_item
             x, y = loader_item
             x = x.to(device=device)
 
             outputs = model(x)
+
+            if architecture == "FastSCNN":
+                outputs = outputs[0]
             outputs = F.interpolate(outputs, size=(1258, 1260), mode = 'nearest')
+
+
 
 
             with torch.no_grad():
                 preds = torch.nn.functional.softmax(outputs, dim=1)
                 preds = torch.argmax(preds, dim=1).detach().cpu()
+
+                # We should uncomment this and comment above when we go for binary classification
+                # preds = torch.sigmoid(outputs)
+                # preds = (preds>0.5).float()
 
             print(f"shape of preds is {preds.shape}")
 
@@ -140,61 +235,26 @@ def save_predictions_as_imgs(train_set, clean_loader, loader, model, folder="sav
             # plt.imshow(preds[0,:, :, :].permute(1, 2, 0), alpha = 0.6)
             plt.savefig("img3.jpg", dpi=300)
             plt.show()
-    elif train_set=="egohands":
+
+    elif test_set=="egohands":
         # write code for when merged with EgoHands here
         model.eval()
         for idx, (x, y) in enumerate(loader):
             x = x.to(device=device)
             print(x.shape)
             with torch.no_grad():
+                outputs = model(x)
+                if architecture == "FastSCNN":
+                    outputs = outputs[0]
                 preds = torch.sigmoid(model(x))
                 preds = (preds>0.5).float()
             y = torch.movedim(y, 3, 1)
             torchvision.utils.save_image(y.float(), f"{folder}{idx}.png")
+
             torchvision.utils.save_image(
                 preds, f"{folder}/pred_{idx}.png"
             )
 
-    # for idx, (x, y) in enumerate(loader):
-    #     x = x.to(device=device)
-
-    #     with torch.no_grad():
-    #         outputs = model(x)
-    #         preds = torch.nn.functional.softmax(outputs, dim=1)
-    #         preds = torch.argmax(outputs, dim=1).detach().cpu()
-
-    #     """ Shows distribution of the predictions"""
-    #     print(f"Unique predictions are {torch.unique(preds)}")
-
-    #     folder = "saved_images/predictions/"
-
-    #     # to save prediciton image
-    #     # torchvision.utils.save_image(
-    #     #     preds, f"{folder}/pred_{idx}.png"
-    #     # )
-
-    #     """Testing shape size for fitting"""
-    #     # print("hello")
-    #     # print(f"y shape {torch.unique(y)}")
-    #     # print(f"preds shape {preds.shape}")
-    #     # print(f"preds 1 shape {preds[0].shape} and unique {torch.unique(preds[0])}")
-
-    #     """save ground truth"""
-    #     # img = TF.to_pil_image(preds)
-    #     # for j in range(x.shape[0]):
-    #     #     print(torch.unique(preds[1]))
-    #     #     plt.imshow(preds[0])
-    #     #     # plt.imshow(np.transpose(y[j], (1, 2, 0)))
-    #     #     folder = f"saved_images/ground_truth/image{j}.jpg"
-    #     #     plt.savefig(folder)
-    #     #     plt.show()
-
-    #     # fig.add_subplot(2, 2, 1)
-    #     plt.imshow(preds[0])
-    #     plt.title("Predicted Mask")
-
-    #     folder = f"./image.jpg"
-    #     plt.savefig(folder)
     model.train()
 
 def create_writer(experiment_name:str, model_name:str, extra: str=None) -> torch.utils.tensorboard.writer.SummaryWriter():
@@ -212,7 +272,7 @@ def create_writer(experiment_name:str, model_name:str, extra: str=None) -> torch
     return SummaryWriter(log_dir=log_dir)
 
 
-def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
+def ensemble_predict(test_set, loader, models, architecture, folder="saved_images/", device="cuda"):
     predictions = []
     for model in models:
         model.eval()
@@ -222,6 +282,9 @@ def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
 
             with torch.no_grad():
                 outputs = model(x)
+            
+            if architecture == "FastSCNN":
+                outputs = outputs[0]
 
             folder = "saved_images/predictions/"
         
@@ -229,12 +292,32 @@ def ensemble_predict(loader, models, folder="saved_images/", device="cuda"):
         outputs = outputs.cpu().detach().numpy()
         predictions.append(outputs)
         
-    outputs = np.average(predictions, axis=0)
-    outputs = torch.from_numpy(outputs)
-    preds = torch.nn.functional.softmax(outputs, dim=1)
-    preds = torch.argmax(outputs, dim=1).detach().cpu()
+    if test_set == 'assemblyhrc':
+        outputs = np.average(predictions, axis=0)
+        outputs = torch.from_numpy(outputs)
+        preds = torch.nn.functional.softmax(outputs, dim=1)
+        preds = torch.argmax(outputs, dim=1).detach().cpu()
 
-    plt.imshow(preds[0])
-    folder = f"./image2.jpg"
-    plt.savefig(folder)
+        # uncomment to make it all binary classification
+        # preds = torch.sigmoid(outputs)
+        # preds = (preds>0.5).float()
+
+        plt.imshow(preds[0])
+        folder = f"./image2.jpg"
+        plt.savefig(folder)
+
+    elif test_set=="egohands":
+        # outputs = outputs.detach.numpy()
+        outputs = outputs.cpu().detach().numpy()
+        predictions.append(outputs)
+
+        with torch.no_grad():
+            outputs = np.average(predictions, axis=0)
+            outputs = torch.from_numpy(outputs)
+            preds = torch.sigmoid(outputs)
+            preds = (preds>0.5).float()
+
+        plt.imshow(preds[0])
+        folder = f"./image2.jpg"
+        plt.savefig(folder)
     

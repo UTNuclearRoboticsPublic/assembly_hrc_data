@@ -1,6 +1,7 @@
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from torchmetrics.classification import MulticlassJaccardIndex
+from torchmetrics.classification import BinaryJaccardIndex
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
@@ -10,6 +11,7 @@ from UNET_Dropout import UNET_Dropout
 import numpy as np
 from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer, ensemble_predict)
 import matplotlib as plt
+from fast_scnn_model import FastSCNN
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
@@ -21,7 +23,7 @@ NUM_WORKERS = 2
 IMAGE_HEIGHT = 64
 IMAGE_WIDTH = 64
 PIN_MEMORY = True
-LOAD_MODEL = True
+LOAD_MODEL = False # decide if you want to use a saved model
 
 ## Choose model
 architecture="UNET" # or "UNET_Dropout" or "FastSCNN"
@@ -44,44 +46,87 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
     loop = tqdm(loader)
 
-    for index, batch in enumerate(loop):
-        data, targets = batch
-        data = data.to(device=DEVICE)
-        targets = targets.to(device=DEVICE)
-        model = model.to(device=DEVICE)
+    if train_set=="assembly":
+        for index, batch in enumerate(loop):
+            
+            data, targets = batch
+            data = data.to(device=DEVICE)
+            targets = targets.to(device=DEVICE)
+            model = model.to(device=DEVICE)
 
-        weight1 = torch.sum(targets==0)
-        weight2 = torch.sum(targets==1)
-        weight3 = torch.sum(targets==2)
+            # removed because now we are doing Binary Only
 
-        weights = torch.FloatTensor([weight1, weight2, weight3])
-        weights = torch.div(1.0, weights).to(device=DEVICE)
-        loss_fn = nn.CrossEntropyLoss(weight=weights)
+            # weight1 = torch.sum(targets==0)
+            # weight2 = torch.sum(targets==1)
+            # weight3 = torch.sum(targets==2)
 
-        
+            # weights = torch.FloatTensor([weight1, weight2, weight3])
+            # weights = torch.div(1.0, weights).to(device=DEVICE)
+            # loss_fn = nn.CrossEntropyLoss(weight=weights)
 
-        with torch.cuda.amp.autocast():
-            predictions = model(data)
 
-            ## just removed long
-            loss = loss_fn(predictions, targets.long())
+            with torch.cuda.amp.autocast():
+                predictions = model(data)
 
-            train_loss+=loss.item()
+                if architecture=="FastSCNN":
+                    predictions = predictions[0]
 
-            ## train accuracy and loss writing
-            predictions = torch.argmax(predictions, dim=1).detach() # removed an addition .cpu() at the end
-            predictions = predictions.to(device=DEVICE)
-            metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
-            train_acc += metric(predictions, targets.long()) 
+                ## just removed long
+                loss = loss_fn(predictions, targets.long())
 
-        # backward
-        optimizer.zero_grad()
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+                train_loss+=loss.item()
 
-        # update tqdm loop
-        loop.set_postfix(loss=loss.item())
+                predictions = torch.sigmoid(predictions)
+                preds = (preds>0.5).float()
+                metric = BinaryJaccardIndex()
+                train_acc += metric(preds, targets)
+                train_loss += loss
+
+
+                ## train accuracy and loss writing
+                # predictions = torch.argmax(predictions, dim=1).detach() # removed an addition .cpu() at the end
+                # predictions = predictions.to(device=DEVICE)
+                # metric = MulticlassJaccardIndex(num_classes=3).to(device = DEVICE)
+                # train_acc += metric(predictions, targets.long()) 
+
+            # backward
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+            # update tqdm loop
+            loop.set_postfix(loss=loss.item())
+    
+    elif train_set == "egohands":
+        for batch_idx, (data, targets) in enumerate(loop):
+            data = data.to(device=DEVICE)
+            targets = targets.float().unsqueeze(1).to(device=DEVICE)
+            targets = targets[:, :, :, :, 0]/255
+
+            # forward
+            with torch.cuda.amp.autocast():
+                predictions = model(data)
+                loss = loss_fn(predictions, targets)
+
+                # for train accuracy and loss tracking
+                preds = torch.sigmoid(predictions)
+                preds = (preds>0.5).float()
+                y2 = torch.movedim(targets, 3, 1).float()
+                metric = BinaryJaccardIndex()
+                train_acc += metric(predictions, targets)
+                train_loss += loss
+
+
+
+            # backward
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+            # update tqdm loop
+            loop.set_postfix(loss=loss.item())
 
     train_loss = train_loss/len(loader)
     train_acc = train_acc / len(loader)
@@ -100,11 +145,12 @@ def main():
             net = UNET(in_channels=3, out_channels=3)
         elif architecture == "FastSCNN":
             ## adjust this when adding EgoHands to the Model
-            net = UNET(in_channels=3, out_channels=3)
+            net = FastSCNN(in_channels=3, out_channels=1).to(DEVICE)
         nets.append(net)
         optimizers.append(optim.Adam(net.parameters(), lr=LEARNING_RATE))
 
-    loss_fn = nn.CrossEntropyLoss()
+    # loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.BCEWithLogitsLoss()
 
     train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE, train_set, test_set)
 
@@ -136,7 +182,7 @@ def main():
             if LOAD_MODEL is not True:
                 model.train()
                 train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
-            test_loss, test_acc = test(val_loader, model, loss_fn)
+            test_loss, test_acc = test(architecture, val_loader, model, loss_fn)
 
 
             if LOAD_MODEL is not True:
@@ -163,13 +209,14 @@ def main():
             }
             save_checkpoint(checkpoint, filename = experiment_name + model_name + extra)
 
-        #     ensemble_predict(
-        #     val_loader, nets, folder="saved_images/", device=DEVICE
-        # )
-
             save_predictions_as_imgs(
-            train_set, clean_val_loader, val_loader, model, folder="saved_images/", device=DEVICE
+            test_set, clean_val_loader, val_loader, model, architecture, folder="saved_images/", device=DEVICE
         )
+    if NUM_NETS > 1:
+        ensemble_predict(
+            test_set, val_loader, nets, architecure, folder="saved_images/", device=DEVICE
+        )
+        
     writer.close()
         
 if __name__ == "__main__":
