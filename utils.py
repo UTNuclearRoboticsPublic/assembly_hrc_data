@@ -226,6 +226,7 @@ def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture
                 preds = (preds>0.5).float()
 
             print(f"shape of preds is {preds.shape}")
+            print(f"shape of preds is {preds.unique}")
 
             preds = preds.cpu()
 
@@ -236,7 +237,7 @@ def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture
 
             # preds= preds.swapaxes(0, 1)
             # preds = preds.permute(1, 0, 2)
-            print(f"shape of preds is {preds.shape}")
+            # print(f"shape of preds is {preds.shape}")
 
             hands_with_masks = [
                 draw_segmentation_masks(img, masks=mask[1:], alpha=0.4, colors=["red"])
