@@ -51,6 +51,10 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                     targets = targets.float().unsqueeze(1).to(device=device)
                     targets = targets[:, :, :, :, 0]/255
                     predictions = model(data)
+
+                    if architecture == "FastSCNN":
+                        predictions = predictions[0]
+
                     batch_loss = loss(predictions, targets)
 
                     test_loss+=batch_loss.item()
@@ -275,7 +279,7 @@ def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture
                 outputs = model(x)
                 if architecture == "FastSCNN":
                     outputs = outputs[0]
-                preds = torch.sigmoid(model(x))
+                preds = torch.sigmoid(outputs)
                 preds = (preds>0.5).float()
             y = torch.movedim(y, 3, 1)
             torchvision.utils.save_image(y.float(), f"{folder}{idx}.png")

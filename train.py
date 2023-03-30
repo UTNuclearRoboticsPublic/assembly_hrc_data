@@ -26,7 +26,7 @@ PIN_MEMORY = True
 LOAD_MODEL = False # decide if you want to use a saved model
 
 ## Choose model
-architecture="UNet" # or "UNET_Dropout" or "FastSCNN"
+architecture="FastSCNN" # or "UNET_Dropout" or "FastSCNN" or "UNET"
 
 ## Choose how you will label the experiment
 train_set = "egohands" # either "assembly" or "egohands"
@@ -111,6 +111,8 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
             # forward
             with torch.cuda.amp.autocast():
                 predictions = model(data)
+                if architecture == "FastSCNN":
+                    predictions = predictions[0]
                 loss = loss_fn(predictions, targets)
 
                 # for train accuracy and loss tracking
@@ -144,12 +146,12 @@ def main():
     optimizers = []
     for _ in range(NUM_NETS):
         if architecture == "UNET_Dropout":
-            net = UNET_Dropout(in_channels=3, out_channels=3, droprate=0.5)
+            net = UNET_Dropout(in_channels=3, out_channels=1, droprate=0.5)
         elif architecture == "UNET":
             net = UNET(in_channels=3, out_channels=1)
         elif architecture == "FastSCNN":
             ## adjust this when adding EgoHands to the Model
-            net = FastSCNN(in_channels=3, out_channels=1).to(DEVICE)
+            net = FastSCNN(in_channels=3, out_channels=1)
         nets.append(net)
         optimizers.append(optim.Adam(net.parameters(), lr=LEARNING_RATE))
 
@@ -218,7 +220,7 @@ def main():
         )
     if NUM_NETS > 1:
         ensemble_predict(
-            test_set, val_loader, nets, architecure, folder="saved_images/", device=DEVICE
+            test_set, val_loader, nets, architecture, folder="saved_images/", device=DEVICE
         )
         
     writer.close()
