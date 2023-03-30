@@ -26,7 +26,7 @@ PIN_MEMORY = True
 LOAD_MODEL = False # decide if you want to use a saved model
 
 ## Choose model
-architecture="UNET" # or "UNET_Dropout" or "FastSCNN"
+architecture="UNet" # or "UNET_Dropout" or "FastSCNN"
 
 ## Choose how you will label the experiment
 train_set = "egohands" # either "assembly" or "egohands"
@@ -51,7 +51,8 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
             
             data, targets = batch
             data = data.to(device=DEVICE)
-            targets = targets.to(device=DEVICE)
+            # targets = targets.to(device=DEVICE)
+            targets = targets.float().unsqueeze(1).to(device=DEVICE)
             model = model.to(device=DEVICE)
 
             # removed because now we are doing Binary Only
@@ -71,14 +72,17 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
                 if architecture=="FastSCNN":
                     predictions = predictions[0]
 
+                print(f"Shape of the predictions(1) is {predictions.shape}")
+                print(f"Shape of the targets(1) is {targets.shape} and unique {targets.unique}")
+
                 ## just removed long
-                loss = loss_fn(predictions, targets.long())
+                loss = loss_fn(predictions, targets)
 
                 train_loss+=loss.item()
 
                 predictions = torch.sigmoid(predictions)
-                preds = (preds>0.5).float()
-                metric = BinaryJaccardIndex()
+                preds = (predictions>0.5).float()
+                metric = BinaryJaccardIndex().to(device=DEVICE)
                 train_acc += metric(preds, targets)
                 train_loss += loss
 

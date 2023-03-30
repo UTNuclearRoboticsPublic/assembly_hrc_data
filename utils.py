@@ -69,21 +69,21 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
 
         with torch.inference_mode():
             for idx, (X, y) in enumerate(loader):
-                X, y = X.to(device=device), y.to(device=device)
-                test_outputs = model(X)
-                batch_loss = loss(test_outputs, y.long())
-                test_loss+=batch_loss.item()
+                X, y = X.to(device=device), y.float().unsqueeze(1).to(device=device)
 
-                test_outputs = torch.argmax(test_outputs, dim=1).detach() ## removed .cpu
+                test_outputs = model(X)
+                batch_loss = loss(test_outputs, y)
+                test_loss+=batch_loss.item()
+                # test_outputs = torch.argmax(test_outputs, dim=1).detach() ## removed .cpu
 
                 # Uncomment when we do all binary
-                # test_outputs = torch.sigmoid(outputs)
-                # test_outputs = (preds>0.5).float()
+                test_outputs = torch.sigmoid(test_outputs)
+                test_outputs = (test_outputs>0.5).float()
 
                 if architecture == "FastSCNN":
                     test_outputs = test_outputs[0]
 
-                test_acc += metric(test_outputs, y.long()) 
+                test_acc += metric(test_outputs, y) 
                 # add test acc
     
     test_loss = test_loss/len(loader)
@@ -213,18 +213,20 @@ def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture
 
 
             with torch.no_grad():
-                preds = torch.nn.functional.softmax(outputs, dim=1)
-                preds = torch.argmax(preds, dim=1).detach().cpu()
+                # preds = torch.nn.functional.softmax(outputs, dim=1)
+                # preds = torch.argmax(preds, dim=1).detach().cpu()
 
                 # We should uncomment this and comment above when we go for binary classification
-                # preds = torch.sigmoid(outputs)
-                # preds = (preds>0.5).float()
+                preds = torch.sigmoid(outputs)
+                preds = (preds>0.5).float()
 
             print(f"shape of preds is {preds.shape}")
 
             preds = preds.cpu()
 
-            preds = (preds == torch.arange(4)[:, None, None])
+
+            # alternate way to do this is to change masks=mask[1:] below and comment out these next two lines
+            preds = (preds == torch.arange(1)[:, None, None])   
             preds = ~preds.bool()
 
             # preds= preds.swapaxes(0, 1)
