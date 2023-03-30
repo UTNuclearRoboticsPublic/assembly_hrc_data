@@ -6,12 +6,13 @@ from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-from UNET import UNET
-from UNET_Dropout import UNET_Dropout
+from models.unet import UNET
+from models.unet_dropout import UNET_Dropout
+from models.ensemble import ensemble_predict
 import numpy as np
-from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer, ensemble_predict)
+from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer)
 import matplotlib as plt
-from fast_scnn_model import FastSCNN
+from models.fast_scnn_model import FastSCNN
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
