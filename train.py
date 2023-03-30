@@ -20,16 +20,16 @@ BATCH_SIZE = 16
 NUM_EPOCHS = 150
 NUM_NETS = 1 # set to 1 if you don't want to use deep ensembles
 NUM_WORKERS = 2
-IMAGE_HEIGHT = 64
-IMAGE_WIDTH = 64
+# IMAGE_HEIGHT = 64
+# IMAGE_WIDTH = 64
 PIN_MEMORY = True
 LOAD_MODEL = False # decide if you want to use a saved model
 
 ## Choose model
-architecture="FastSCNN" # or "UNET_Dropout" or "FastSCNN" or "UNET"
+architecture="UNET" # or "UNET_Dropout" or "FastSCNN" or "UNET"
 
 ## Choose how you will label the experiment
-train_set = "assembly" # either "assembly" or "egohands"
+train_set = "egohands" # either "assembly" or "egohands"
 test_set = "assembly" # either "assembly" or "egohands"
 
 
@@ -72,8 +72,8 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
                 if architecture=="FastSCNN":
                     predictions = predictions[0]
 
-                print(f"Shape of the predictions(1) is {predictions.shape}")
-                print(f"Shape of the targets(1) is {targets.shape} and unique {targets.unique}")
+                # print(f"Shape of the predictions(1) is {predictions.shape}")
+                # print(f"Shape of the targets(1) is {targets.shape} and unique {targets.unique}")
 
                 ## just removed long
                 loss = loss_fn(predictions, targets)
@@ -161,6 +161,7 @@ def main():
     train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE, train_set, test_set)
 
     if LOAD_MODEL:
+        # extra= f"{NUM_EPOCHS}-epochs_{train_set}-train_{train_set}-test"
         load_checkpoint(torch.load(experiment_name + model_name + extra), net)
 
     scaler = torch.cuda.amp.GradScaler()
@@ -188,7 +189,7 @@ def main():
             if LOAD_MODEL is not True:
                 model.train()
                 train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
-            test_loss, test_acc = test(architecture, val_loader, model, loss_fn, test_set)
+            test_loss, test_acc = test(architecture, val_loader, model, loss_fn, test_set, device=DEVICE)
 
 
             if LOAD_MODEL is not True:
