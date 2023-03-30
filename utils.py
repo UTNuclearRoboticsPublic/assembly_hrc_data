@@ -76,6 +76,10 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                 X, y = X.to(device=device), y.float().unsqueeze(1).to(device=device)
 
                 test_outputs = model(X)
+
+                if architecture == "FastSCNN":
+                    test_outputs = test_outputs[0]
+
                 batch_loss = loss(test_outputs, y)
                 test_loss+=batch_loss.item()
                 # test_outputs = torch.argmax(test_outputs, dim=1).detach() ## removed .cpu
@@ -83,9 +87,6 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                 # Uncomment when we do all binary
                 test_outputs = torch.sigmoid(test_outputs)
                 test_outputs = (test_outputs>0.5).float()
-
-                if architecture == "FastSCNN":
-                    test_outputs = test_outputs[0]
 
                 test_acc += metric(test_outputs, y) 
                 # add test acc
@@ -238,7 +239,7 @@ def save_predictions_as_imgs(test_set, clean_loader, loader, model, architecture
             print(f"shape of preds is {preds.shape}")
 
             hands_with_masks = [
-                draw_segmentation_masks(img, masks=mask, alpha=0.4, colors=["red"])
+                draw_segmentation_masks(img, masks=mask[1:], alpha=0.4, colors=["red"])
                 for img, mask in zip(x1, preds)
             ]
 

@@ -29,8 +29,8 @@ LOAD_MODEL = False # decide if you want to use a saved model
 architecture="FastSCNN" # or "UNET_Dropout" or "FastSCNN" or "UNET"
 
 ## Choose how you will label the experiment
-train_set = "egohands" # either "assembly" or "egohands"
-test_set = "egohands" # either "assembly" or "egohands"
+train_set = "assembly" # either "assembly" or "egohands"
+test_set = "assembly" # either "assembly" or "egohands"
 
 
 ## Auto-set values that will be used to save your experiment
