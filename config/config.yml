@@ -1,0 +1,10 @@
+learning_rate: 1.0e-4
+batch_size: 16
+num_epochs: 150
+num_nets: 1
+num_workers: 2
+pin_memory: True
+load_model: True
+architecture: "UNET"
+train_set: "egohands"
+test_set: "egohands"

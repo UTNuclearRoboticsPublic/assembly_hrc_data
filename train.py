@@ -10,28 +10,29 @@ from models.unet import UNET
 from models.unet_dropout import UNET_Dropout
 from models.ensemble import ensemble_predict
 import numpy as np
+import yaml
 from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer)
 import matplotlib as plt
 from models.fast_scnn_model import FastSCNN
 
-# Hyperparameters etc.
-LEARNING_RATE = 1e-4
+with open("./config/config.yml", "r") as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
+
+LEARNING_RATE = config["learning_rate"]
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 16
-NUM_EPOCHS = 150
-NUM_NETS = 1 # set to 1 if you don't want to use deep ensembles
-NUM_WORKERS = 2
-# IMAGE_HEIGHT = 64
-# IMAGE_WIDTH = 64
-PIN_MEMORY = True
-LOAD_MODEL = False # decide if you want to use a saved model
+BATCH_SIZE = config["batch_size"]
+NUM_EPOCHS = config["num_epochs"]
+NUM_NETS = config["num_nets"] # set to 1 if you don't want to use deep ensembles
+NUM_WORKERS = config["num_workers"]
+PIN_MEMORY = config["pin_memory"]
+LOAD_MODEL = config["load_model"] # decide if you want to use a saved model
 
 ## Choose model
-architecture="UNET" # or "UNET_Dropout" or "FastSCNN" or "UNET"
+architecture=config["architecture"] # or "UNET_Dropout" or "FastSCNN" or "UNET"
 
 ## Choose how you will label the experiment
-train_set = "egohands" # either "assembly" or "egohands"
-test_set = "assembly" # either "assembly" or "egohands"
+train_set = config["train_set"] # either "assembly" or "egohands"
+test_set = config["test_set"] # either "assembly" or "egohands"
 
 
 ## Auto-set values that will be used to save your experiment
@@ -162,7 +163,7 @@ def main():
     train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE, train_set, test_set)
 
     if LOAD_MODEL:
-        # extra= f"{NUM_EPOCHS}-epochs_{train_set}-train_{train_set}-test"
+        extra= f"{NUM_EPOCHS}-epochs_{train_set}-train_{train_set}-test"
         load_checkpoint(torch.load(experiment_name + model_name + extra), net)
 
     scaler = torch.cuda.amp.GradScaler()
