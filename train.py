@@ -34,12 +34,6 @@ architecture=config["architecture"] # or "UNET_Dropout" or "FastSCNN" or "UNET"
 train_set = config["train_set"] # either "assembly" or "egohands"
 test_set = config["test_set"] # either "assembly" or "egohands"
 
-
-## Auto-set values that will be used to save your experiment
-experiment_name=f"{architecture}_architecute"
-model_name=f"{architecture}"
-extra= f"{NUM_EPOCHS}-epochs_{train_set}-train_{test_set}-test"
-
 def train_fn(loader, model, optimizer, loss_fn, scaler):
     """train_fn trains the model in model.py with the specified loader, model
     optimizer, loss function, and scaler value
@@ -144,6 +138,12 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 
 def main():
+
+    ## Auto-set values that will be used to save your experiment
+    experiment_name=f"{architecture}_architecute"
+    model_name=f"{architecture}"
+    extra= f"{NUM_EPOCHS}-epochs_{train_set}-train_{test_set}-test1"
+    
     nets = []
     optimizers = []
     for _ in range(NUM_NETS):
