@@ -11,6 +11,9 @@ def expected_calibration_error(predictions, targets):
 
 # Adaptive calibration error
 def adaptive_calibration_error(predictions, targets):
+    predictions2 = (predictions>0.5).float().cpu().numpy()
+    predictions = predictions.cpu().numpy()
+    targets = targets.cpu().numpy()
 
     ace = 0.0
     bins = 15
@@ -23,7 +26,7 @@ def adaptive_calibration_error(predictions, targets):
 
     # probabilities should be after the sigmoid/softmax but not before the argmax/floating
     probabilities = predictions
-    predictions = (predictions>0.5).float()
+    predictions = predictions2
     confidences = np.max(probabilities, axis=1)
     accuracies = np.equal(predictions, targets)
 
@@ -34,7 +37,10 @@ def adaptive_calibration_error(predictions, targets):
     pred_matrix = np.zeros([rows, columns])
     label_matrix = np.zeros([rows, columns])
 
-    pred_matrix[np.arange(rows), predictions] = 1
+    print(f"datatype is {(np.arange(rows)).dtype}")
+    print(f"datatype is {(predictions).astype(np.int32).dtype}")
+
+    pred_matrix[np.arange(rows), predictions.astype(np.int32)] = 1
     label_matrix[np.arange(rows), targets] = 1
 
     # if the probabilities array is empty (no confidence score)
@@ -81,12 +87,24 @@ def adaptive_calibration_error(predictions, targets):
     return ace
 
 def shannon_entropy(probabilities):
-
     # right after the sigmoid
-    # entropy = np.sum(predictions * torch.log(predictions), dim=1)
+    num_batches = ((probabilities[:, 0, 0, 0].shape))[0]
+    entropy_list = []
 
-    return entropy(probabilities.numpy(), base=10)
+    for i in range(num_batches):
+        inputs = probabilities[i, :, :, :].cpu().numpy()
+        # flatten the image to a 1d array to prepare for entropy
+        inputs = inputs.flatten()
+        entropy2 = entropy(inputs)
+        image_avg_entropy = np.average(entropy2)
+
+        #append average entropy for this image to the entropy list
+        entropy_list.append(image_avg_entropy)
+
+    # get the average entropy across the batch
+    avg_entropy_per_image = np.average(entropy_list)
+    return avg_entropy_per_image
 
 def variance(probabilities):
     # check which dimension you need to do this over
-    return torch.var(probabilities)
+    return torch.var(probabilities, dim=0)
