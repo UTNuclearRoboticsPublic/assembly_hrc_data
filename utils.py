@@ -25,6 +25,7 @@ import dill
 # import EgoHands_Dataset.get_training_imgs
 from EgoHands_Dataset.get_meta_by import get_meta_by
 from EgoHands_Dataset.dataset import EgoHandsDataset
+from metrics import expected_calibration_error, adaptive_calibration_error, shannon_entropy, variance
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -52,6 +53,8 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                     targets = targets[:, :, :, :, 0]/255
                     predictions = model(data)
 
+                    # shape here is [4, 1, 161, 161]
+
                     if architecture == "FastSCNN":
                         predictions = predictions[0]
 
@@ -59,6 +62,15 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
 
                     test_loss+=batch_loss.item()
                     preds = torch.sigmoid(predictions)
+
+                    # the shape here is also [4, 1, 161, 161]
+
+                    print(f"the shannon entropy is {shannon_entropy(preds)}")
+                    print(f"the ECE is {expected_calibration_error(preds, targets)}")
+
+                    # need to fix the below
+                    print(f"the ACE is {adaptive_calibration_error(preds, targets)}")
+
                     preds = (preds>0.5).float()
                     y2 = torch.movedim(targets, 3, 1).float()
 
