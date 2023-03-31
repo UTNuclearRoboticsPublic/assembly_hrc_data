@@ -1,6 +1,8 @@
 from torchmetrics.classification import BinaryJaccardIndex
 from torchmetrics.classification import BinaryCalibrationError
 import numpy as np
+import torch
+from scipy.stats import entropy
 
 def expected_calibration_error(predictions, targets):
     metric = BinaryCalibrationError(norm='l1')
@@ -77,3 +79,14 @@ def adaptive_calibration_error(predictions, targets):
     ace += np.dot(bin_proportion, bin_score)
 
     return ace
+
+def shannon_entropy(probabilities):
+
+    # right after the sigmoid
+    # entropy = np.sum(predictions * torch.log(predictions), dim=1)
+
+    return entropy(probabilities.numpy(), base=10)
+
+def variance(probabilities):
+    # check which dimension you need to do this over
+    return torch.var(probabilities)
