@@ -4,7 +4,7 @@ num_epochs: 150
 num_nets: 1
 num_workers: 2
 pin_memory: True
-load_model: True
+load_model: False
 architecture: "UNET"
 train_set: "egohands"
 test_set: "egohands"
