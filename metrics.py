@@ -16,7 +16,7 @@ def iou(outputs, targets, device="cuda"):
 def adaptive_calibration_error(confidences: torch.Tensor,
                   true_labels: torch.Tensor,
                   n_bins: int = 15,
-                  threshold: float = 1e-3) -> float:
+                  threshold: float = 0) -> float:
     """
         How to use - 
         preds2 = torch.reshape(preds[0, :, :, :], (161*161, 1))
@@ -26,7 +26,7 @@ def adaptive_calibration_error(confidences: torch.Tensor,
         confidences - a tensor [N, K] of predicted probs
         true_labels- a tensor [N,] of ground truth labels
         n_bins - the num of bins used
-        threshold - keep this to 0 for ACE, change for TACE
+        threshold - keep this very close to 0 for ACE, change for TACE
     """
 
     num_objects, num_classes = confidences.size()
