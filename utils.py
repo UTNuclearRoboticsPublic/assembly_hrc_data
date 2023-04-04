@@ -60,9 +60,21 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                     batch_loss = loss(predictions, targets)
 
                     test_loss+=batch_loss.item()
+
                     preds = torch.sigmoid(predictions)
 
                     # the shape here is also [4, 1, 161, 161]
+
+                    preds2 = torch.reshape(preds[0, :, :, :], (161*161, 1))
+                    print(f"preds2 shape is {preds2.size()}")
+                    print(f"targets shape is {targets.size()}")
+
+                    t2 = torch.reshape(targets[0, :, :, :], (161*161,))
+
+                    # confidences = np.max(preds, axis=1)
+
+                    print(f"the ACE is {adaptive_calibration_error(preds2, t2)}")
+
 
                     print(f"the shannon entropy is {shannon_entropy(preds)}")
                     print(f"the ECE is {expected_calibration_error(preds, targets)}")
@@ -70,7 +82,6 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                     # need to fix the below
                     print(f"the variance is {avg_variance_per_image(preds)}")
 
-                    print(f"the ACE is {adaptive_calibration_error(preds, targets)}")
 
                     preds = (preds>0.5).float()
                     y2 = torch.movedim(targets, 3, 1).float()
