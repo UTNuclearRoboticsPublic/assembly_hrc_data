@@ -105,14 +105,10 @@ def adaptive_calibration_error(confidences: torch.Tensor,
                   n_bins: int = 15,
                   threshold: float = 1e-3) -> float:
     """
-    Args:
-        confidences (Tensor): a tensor of shape [N, K] of predicted confidences.
-        true_labels (Tensor): a tensor of shape [N,] of ground truth labels.
-        n_bins (int): the number of bins used by the histrogram binning.
-        threshold (float): the value for thresholding to avoid tiny predictions.
-    
-    Returns:
-        tace (float): thresholded adaptive calibration error of predictions.
+        confidences - a tensor [N, K] of predicted probs
+        true_labels- a tensor [N,] of ground truth labels
+        n_bins - the num of bins used
+        threshold - keep this to 0 for ACE, change for TACE
     """
 
     ## How to use - 
@@ -120,32 +116,38 @@ def adaptive_calibration_error(confidences: torch.Tensor,
     # t2 = torch.reshape(targets[0, :, :, :], (161*161,))
     # print(f"the ACE is {adaptive_calibration_error(preds2, t2)}")
 
-    n_objects, n_classes = confidences.size()
+    num_objects, num_classes = confidences.size()
 
     tace = torch.zeros(1, device=confidences.device)
-    for cur_class in range(n_classes):
-        cur_class_conf = confidences[:, cur_class]
+    for current_class in range(num_classes):
+        current_class_conf = confidences[:, current_class]
 
-        targets_sorted = true_labels[cur_class_conf.argsort()]
-        cur_class_conf_sorted = cur_class_conf.sort()[0]
+        targets_sorted = true_labels[current_class_conf.argsort()]
+        current_class_conf_sorted = current_class_conf.sort()[0]
 
-        targets_sorted = targets_sorted[cur_class_conf_sorted > threshold]
-        cur_class_conf_sorted = cur_class_conf_sorted[cur_class_conf_sorted > threshold]
+        targets_sorted = targets_sorted[current_class_conf_sorted > threshold]
+        current_class_conf_sorted = current_class_conf_sorted[current_class_conf_sorted > threshold]
 
-        bin_size = len(cur_class_conf_sorted) // n_bins
+        bin_size = len(current_class_conf_sorted) // n_bins
+
+        # going through and summing up each of the bins
         for bin_i in range(n_bins):
-            bin_start_ind = bin_i * bin_size
+            bin_start_index = bin_i * bin_size
             if bin_i < n_bins - 1:
-                bin_end_ind = bin_start_ind + bin_size
+                bin_end_index = bin_start_index + bin_size
             else:
-                bin_end_ind = len(targets_sorted)
-                bin_size = bin_end_ind - bin_start_ind
-            bin_acc = (targets_sorted[bin_start_ind:bin_end_ind] == cur_class)
-            bin_conf = cur_class_conf_sorted[bin_start_ind:bin_end_ind]
-            avg_confidence_in_bin = torch.mean(bin_conf.float())
-            avg_accuracy_in_bin = torch.mean(bin_acc.float())
+                bin_end_index = len(targets_sorted)
+                bin_size = bin_end_index - bin_start_index
+            bin_accuracy = (targets_sorted[bin_start_index:bin_end_index] == current_class)
+            bin_confidence = current_class_conf_sorted[bin_start_index:bin_end_index]
+
+            # calculating confidence and accuracy for this part of the summation
+            avg_confidence_in_bin = torch.mean(bin_confidence.float())
+            avg_accuracy_in_bin = torch.mean(bin_accuracy.float())
+
+            # subtracting the two before using the summation in the bin
             delta = torch.abs(avg_confidence_in_bin - avg_accuracy_in_bin)
-            tace += delta * bin_size / (n_objects * n_classes)
+            tace += delta * bin_size / (num_objects * num_classes)
 
     return tace.item()
 
