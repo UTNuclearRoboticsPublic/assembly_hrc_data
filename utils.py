@@ -25,7 +25,7 @@ import dill
 # import EgoHands_Dataset.get_training_imgs
 from EgoHands_Dataset.get_meta_by import get_meta_by
 from EgoHands_Dataset.dataset import EgoHandsDataset
-from metrics import expected_calibration_error, adaptive_calibration_error, shannon_entropy, variance
+from metrics import expected_calibration_error, adaptive_calibration_error, shannon_entropy, avg_variance_per_image, iou
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -42,7 +42,6 @@ def load_checkpoint(checkpoint, model):
 def test(architecture, loader, model, loss, test_set, device="cuda"):
     model.eval()
     test_loss, test_acc  = 0, 0
-    metric = BinaryJaccardIndex().to(device=device)
 
 
     if test_set == "egohands":
@@ -69,19 +68,21 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                     print(f"the ECE is {expected_calibration_error(preds, targets)}")
 
                     # need to fix the below
+                    print(f"the variance is {avg_variance_per_image(preds)}")
+
                     print(f"the ACE is {adaptive_calibration_error(preds, targets)}")
 
                     preds = (preds>0.5).float()
                     y2 = torch.movedim(targets, 3, 1).float()
 
                     # should this be y2 or preds or predictions or should movedim go earlier
-                    test_acc +=metric(predictions, targets)
+                    test_acc +=iou(predictions, targets, device=device)
 
                     
 
     elif test_set == "assembly":
 
-        metric = MulticlassJaccardIndex(num_classes=3).to(device=device)
+        # metric = MulticlassJaccardIndex(num_classes=3).to(device=device)
 
         with torch.inference_mode():
             for idx, (X, y) in enumerate(loader):
@@ -100,7 +101,7 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                 test_outputs = torch.sigmoid(test_outputs)
                 test_outputs = (test_outputs>0.5).float()
 
-                test_acc += metric(test_outputs, y) 
+                test_acc += iou(test_outputs, y, device=device) 
                 # add test acc
     
     test_loss = test_loss/len(loader)

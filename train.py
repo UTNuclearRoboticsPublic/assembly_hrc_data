@@ -14,6 +14,7 @@ import yaml
 from utils import (load_checkpoint, save_checkpoint, get_loaders, save_predictions_as_imgs, test, create_writer)
 import matplotlib as plt
 from models.fast_scnn_model import FastSCNN
+from metrics import iou
 
 with open("./config/config.yml", "r") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -78,8 +79,8 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
                 predictions = torch.sigmoid(predictions)
                 preds = (predictions>0.5).float()
-                metric = BinaryJaccardIndex().to(device=DEVICE)
-                train_acc += metric(preds, targets)
+                # metric = BinaryJaccardIndex().to(device=DEVICE)
+                train_acc += iou(preds, targets, device=DEVICE)
                 train_loss += loss
 
 
@@ -115,8 +116,8 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
                 preds = torch.sigmoid(predictions)
                 preds = (preds>0.5).float()
                 y2 = torch.movedim(targets, 3, 1).float()
-                metric = BinaryJaccardIndex().to(device=DEVICE)
-                train_acc += metric(predictions, targets)
+                # metric = BinaryJaccardIndex().to(device=DEVICE)
+                train_acc += iou(predictions, targets, device=DEVICE)
                 train_loss += loss
 
 
