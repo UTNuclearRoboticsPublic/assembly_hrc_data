@@ -26,7 +26,7 @@ def adaptive_calibration_error(confidences: torch.Tensor,
         confidences - a tensor [N, K] of predicted probs
         true_labels- a tensor [N,] of ground truth labels
         n_bins - the num of bins used
-        threshold - keep this very close to 0 for ACE, change for TACE
+        threshold - keep this to 0 for ACE, change for TACE
     """
 
     num_objects, num_classes = confidences.size()
