@@ -1,5 +1,4 @@
-from torchmetrics.classification import BinaryJaccardIndex
-from torchmetrics.classification import BinaryCalibrationError
+from torchmetrics.classification import BinaryJaccardIndex, BinaryCalibrationError, PrecisionRecallCurve
 import numpy as np
 import torch
 from scipy.stats import entropy
@@ -12,6 +11,16 @@ def expected_calibration_error(predictions, targets):
 def iou(outputs, targets, device="cuda"):
     metric = BinaryJaccardIndex().to(device=device)
     return metric(outputs, targets)
+
+def metrics_pr(predictions, targets):
+    # returns f1 score and area under curve for the precision recall curve
+    pred = predictions[0, :, :, :]
+    target = targets[0, :, :, :]
+    pr_curve = PrecisionRecallCurve(task="binary")
+    precision, recall, thresholds = pr_curve(pred, target)
+    f1 = 2 * (precision * recall) / (precision + recall)
+    auc = torch.trapezoid(precision, recall)
+    return f1, auc
 
 def adaptive_calibration_error(confidences: torch.Tensor,
                   true_labels: torch.Tensor,
