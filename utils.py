@@ -25,7 +25,7 @@ import dill
 # import EgoHands_Dataset.get_training_imgs
 from EgoHands_Dataset.get_meta_by import get_meta_by
 from EgoHands_Dataset.dataset import EgoHandsDataset
-from metrics import expected_calibration_error, adaptive_calibration_error, shannon_entropy, avg_variance_per_image, iou
+from metrics import expected_calibration_error, adaptive_calibration_error, shannon_entropy, avg_variance_per_image, iou, metrics_pr
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -63,17 +63,13 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
 
                     preds = torch.sigmoid(predictions)
 
-                    # the shape here is also [4, 1, 161, 161]
+                    # the shape of preds here is also [4, 1, 161, 161]
 
-                    preds2 = torch.reshape(preds[0, :, :, :], (161*161, 1))
-                    print(f"preds2 shape is {preds2.size()}")
-                    print(f"targets shape is {targets.size()}")
+                    print(f"the ACE is {adaptive_calibration_error(preds, targets)}")
 
-                    t2 = torch.reshape(targets[0, :, :, :], (161*161,))
+                    f1, auc = metrics_pr(preds, targets)
 
-                    # confidences = np.max(preds, axis=1)
-
-                    print(f"the ACE is {adaptive_calibration_error(preds2, t2)}")
+                    print(f"f1 is {f1} and auc is {auc}")
 
 
                     print(f"the shannon entropy is {shannon_entropy(preds)}")

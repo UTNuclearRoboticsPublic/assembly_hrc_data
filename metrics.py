@@ -1,7 +1,9 @@
-from torchmetrics.classification import BinaryJaccardIndex, BinaryCalibrationError, PrecisionRecallCurve
+from torchmetrics.classification import BinaryJaccardIndex, BinaryCalibrationError, BinaryPrecisionRecallCurve
 import numpy as np
 import torch
 from scipy.stats import entropy
+
+# for all of these, pass in preds after sigmoid. Tested on EgoHands test function
 
 def expected_calibration_error(predictions, targets):
     metric = BinaryCalibrationError(norm='l1')
@@ -13,13 +15,25 @@ def iou(outputs, targets, device="cuda"):
     return metric(outputs, targets)
 
 def metrics_pr(predictions, targets):
+        
+    print(f"predictions shape is {predictions.shape}")
+    num_batches = ((predictions[:, 0, 0, 0].shape))[0]
+    height = ((predictions[0, 0, :, 0].shape))[0]
+    width = ((predictions[0, 0, 0, :].shape))[0]
+
+    preds = torch.reshape(predictions, (num_batches, height, width))
+    targets = torch.reshape(targets, (num_batches, height, width))
+
+    # preds = predictions
+
     # returns f1 score and area under curve for the precision recall curve
-    pred = predictions[0, :, :, :]
-    target = targets[0, :, :, :]
-    pr_curve = PrecisionRecallCurve(task="binary")
-    precision, recall, thresholds = pr_curve(pred, target)
-    f1 = 2 * (precision * recall) / (precision + recall)
+    pr_curve = BinaryPrecisionRecallCurve()
+    precision, recall, thresholds = pr_curve(preds, targets.long())
+
+    # doing at zero because the above evaluates at multiple thresholds. Change if you want a specific threshold.
+    f1 = 2 * ((torch.mul(precision[0], recall[0])) / (torch.add(precision[0], recall[0])))
     auc = torch.trapezoid(precision, recall)
+
     return f1, auc
 
 def adaptive_calibration_error(confidences: torch.Tensor,
@@ -37,6 +51,10 @@ def adaptive_calibration_error(confidences: torch.Tensor,
         n_bins - the num of bins used
         threshold - keep this to 0 for ACE, change for TACE
     """
+
+    confidences = torch.reshape(confidences[0, :, :, :], (161*161, 1))
+
+    true_labels = torch.reshape(true_labels[0, :, :, :], (161*161,))
 
     num_objects, num_classes = confidences.size()
 
