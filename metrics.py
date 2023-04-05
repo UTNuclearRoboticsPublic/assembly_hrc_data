@@ -14,6 +14,7 @@ def iou(outputs, targets, device="cuda"):
     metric = BinaryJaccardIndex().to(device=device)
     return metric(outputs, targets)
 
+# metrics for the precision recall curve
 def metrics_pr(predictions, targets):
         
     print(f"predictions shape is {predictions.shape}")
