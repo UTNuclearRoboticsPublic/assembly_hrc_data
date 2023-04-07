@@ -19,6 +19,7 @@ import numpy as np
 import os
 from datetime import datetime
 import dill
+import timeit
 
 # import EgoHands_Dataset.get_segmentation_mask
 # import EgoHands_Dataset.get_frame_path
@@ -41,7 +42,8 @@ def load_checkpoint(checkpoint, model):
 ## tracking test values
 def test(architecture, loader, model, loss, test_set, device="cuda"):
     model.eval()
-    test_loss, test_acc  = 0, 0
+
+    test_loss, test_acc, ece_list, f1_list, auc_list, ace_list, entropy_list, variance_list= 0, 0, 0, 0, 0, 0, 0, 0
 
 
     if test_set == "egohands":
@@ -64,19 +66,23 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                     preds = torch.sigmoid(predictions)
 
                     # the shape of preds here is also [4, 1, 161, 161]
-
+                    print(f"shape of preds is {preds.shape}")
                     print(f"the ACE is {adaptive_calibration_error(preds, targets)}")
 
                     f1, auc = metrics_pr(preds, targets)
 
-                    print(f"f1 is {f1} and auc is {auc}")
+                    # print(f"f1 is {f1} and auc is {auc}")
+                    # print(f"the shannon entropy is {shannon_entropy(preds)}")
+                    # print(f"the ECE is {expected_calibration_error(preds, targets)}")
+                    # # need to fix the below
+                    # print(f"the variance is {avg_variance_per_image(preds)}")
 
-
-                    print(f"the shannon entropy is {shannon_entropy(preds)}")
-                    print(f"the ECE is {expected_calibration_error(preds, targets)}")
-
-                    # need to fix the below
-                    print(f"the variance is {avg_variance_per_image(preds)}")
+                    ece_list+=expected_calibration_error(predictions, targets, device=device)
+                    f1_list += f1
+                    auc_list += auc
+                    ace_list += adaptive_calibration_error(preds, targets)
+                    entropy_list += shannon_entropy(preds)
+                    variance_list += avg_variance_per_image(preds)
 
 
                     preds = (preds>0.5).float()
@@ -108,15 +114,26 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                 test_outputs = torch.sigmoid(test_outputs)
                 test_outputs = (test_outputs>0.5).float()
 
-                test_acc += iou(test_outputs, y, device=device) 
-                # add test acc
+                f1, auc = metrics_pr(preds, targets)
+
+                test_acc +=iou(predictions, targets, device=device)
+                ece_list+=expected_calibration_error(predictions, targets, device=device)
+                f1_list += f1
+                auc_list += auc
+                ace_list += adaptive_calibration_error(preds, targets)
+                entropy_list += shannon_entropy(preds)
+                variance_list += avg_variance_per_image(preds)
     
     test_loss = test_loss/len(loader)
     test_acc = test_acc/len(loader)
-    return test_loss, test_acc
-    # plt.imshow(preds[0])
-    # folder = f"./image.jpg"
-    # plt.savefig(folder)
+    test_ece = ece_list/len(loader)
+    test_ace = ace_list/len(loader)
+    test_f1 = f1_list/len(loader)
+    test_auc = auc_list/len(loader)
+    test_entropy = entropy_list/len(loader)
+    test_variance = variance_list/len(loader)
+
+    return test_loss, test_acc, test_ece, test_ace, test_f1, test_auc, test_entropy, test_variance
 
 def to_uint8(x):
     return (x * 255).int().to(torch.uint8)

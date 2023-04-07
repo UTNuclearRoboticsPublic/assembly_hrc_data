@@ -5,8 +5,8 @@ from scipy.stats import entropy
 
 # for all of these, pass in preds after sigmoid. Tested on EgoHands test function
 
-def expected_calibration_error(predictions, targets):
-    metric = BinaryCalibrationError(norm='l1')
+def expected_calibration_error(predictions, targets, device="cuda"):
+    metric = BinaryCalibrationError(norm='l1').to(device=device)
     bce = metric(predictions, targets)
     return bce
 
@@ -52,7 +52,7 @@ def adaptive_calibration_error(confidences: torch.Tensor,
         n_bins - the num of bins used
         threshold - keep this to 0 for ACE, change for TACE
     """
-
+    
     confidences = torch.reshape(confidences[0, :, :, :], (161*161, 1))
 
     true_labels = torch.reshape(true_labels[0, :, :, :], (161*161,))
@@ -91,6 +91,52 @@ def adaptive_calibration_error(confidences: torch.Tensor,
             tace += delta * bin_size / (num_objects * num_classes)
 
     return tace.item()
+
+    # taces  = []
+
+    # num_batches = ((confidences[:, 0, 0, 0].shape))[0]
+    
+    # for i in range(num_batches):
+    #     confidences = torch.reshape(confidences[i, :, :, :], (161*161, 1))
+
+    #     true_labels = torch.reshape(true_labels[i, :, :, :], (161*161,))
+
+    #     num_objects, num_classes = confidences.size()
+
+    #     tace = torch.zeros(1, device=confidences.device)
+    #     for current_class in range(num_classes):
+    #         current_class_conf = confidences[:, current_class]
+
+    #         targets_sorted = true_labels[current_class_conf.argsort()]
+    #         current_class_conf_sorted = current_class_conf.sort()[0]
+
+    #         targets_sorted = targets_sorted[current_class_conf_sorted > threshold]
+    #         current_class_conf_sorted = current_class_conf_sorted[current_class_conf_sorted > threshold]
+
+    #         bin_size = len(current_class_conf_sorted) // n_bins
+
+    #         # going through and summing up each of the bins
+    #         for bin_i in range(n_bins):
+    #             bin_start_index = bin_i * bin_size
+    #             if bin_i < n_bins - 1:
+    #                 bin_end_index = bin_start_index + bin_size
+    #             else:
+    #                 bin_end_index = len(targets_sorted)
+    #                 bin_size = bin_end_index - bin_start_index
+    #             bin_accuracy = (targets_sorted[bin_start_index:bin_end_index] == current_class)
+    #             bin_confidence = current_class_conf_sorted[bin_start_index:bin_end_index]
+
+    #             # calculating confidence and accuracy for this part of the summation
+    #             avg_confidence_in_bin = torch.mean(bin_confidence.float())
+    #             avg_accuracy_in_bin = torch.mean(bin_accuracy.float())
+
+    #             # subtracting the two before using the summation in the bin
+    #             delta = torch.abs(avg_confidence_in_bin - avg_accuracy_in_bin)
+    #             tace += delta * bin_size / (num_objects * num_classes)
+
+    #         taces.append(tace)
+
+    # return torch.mean(taces)
 
 def shannon_entropy(probabilities):
     # right after the sigmoid

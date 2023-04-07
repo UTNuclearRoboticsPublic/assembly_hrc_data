@@ -175,7 +175,14 @@ def main():
             "train_loss": [],
             "train_acc": [],
             "test_loss": [],
-            "test_acc": []
+            "test_acc": [],
+            "test_ece": [],
+            "test_ace": [],
+            "test_f1": [],
+            "test_auc": [],
+            "test_entropy": [],
+            "test_variance": []
+            
         }
 
     # Create an example writer
@@ -192,7 +199,7 @@ def main():
             if LOAD_MODEL is not True:
                 model.train()
                 train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
-            test_loss, test_acc = test(architecture, val_loader, model, loss_fn, test_set, device=DEVICE)
+            test_loss, test_acc, test_ece, test_ace, test_f1, test_auc, test_entropy, test_variance = test(architecture, val_loader, model, loss_fn, test_set, device=DEVICE)
 
 
             if LOAD_MODEL is not True:
@@ -201,16 +208,44 @@ def main():
                 results["test_loss"].append(test_loss)
                 results["test_acc"].append(test_acc)
 
+                results["test_ece"].append(test_ece)
+                results["test_ace"].append(test_ace)
+                results["test_f1"].append(test_f1)
+                results["test_auc"].append(test_auc)
+                results["test_entropy"].append(test_entropy)
+                results["test_variance"].append(test_variance)
+
+
+
+
                 writer.add_scalars(main_tag="Loss", 
                             tag_scalar_dict={"train_loss": train_loss,
                                                 "test_loss": test_loss},
                             global_step=epoch)
 
                 # Add accuracy results to SummaryWriter
-                writer.add_scalars( main_tag="Accuracy", 
+                writer.add_scalars( main_tag="Accuracy (IoU)", 
                                     tag_scalar_dict={"train_acc": train_acc,
                                                     "test_acc": test_acc}, 
                                     global_step=epoch)
+                
+                writer.add_scalars( main_tag="Calibration Error", 
+                                    tag_scalar_dict={"test_ace": test_ace,
+                                                    "test_ece": test_ece}, 
+                                    global_step=epoch)
+
+                writer.add_scalars( main_tag="Precision Recall Metrics", 
+                    tag_scalar_dict={"test_f1": test_f1,
+                                    "test_auc": test_auc}, 
+                    global_step=epoch)
+
+                writer.add_scalars( main_tag="Entropy", 
+                    tag_scalar_dict={"test_entropy": test_entropy}, 
+                    global_step=epoch)
+                
+                writer.add_scalars( main_tag="Variance", 
+                    tag_scalar_dict={"variance": test_variance}, 
+                    global_step=epoch)
 
             # save model
             checkpoint = {
