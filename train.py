@@ -164,13 +164,14 @@ def main():
     train_loader, val_loader, clean_val_loader = get_loaders(BATCH_SIZE, train_set, test_set)
 
     if LOAD_MODEL:
-        extra= f"{NUM_EPOCHS}-epochs_{train_set}-train_{train_set}-test"
+        # extra= f"{NUM_EPOCHS}-epochs_{train_set}-train_{train_set}-test"
+        print(f"loading {experiment_name + model_name + extra}")
         load_checkpoint(torch.load(experiment_name + model_name + extra), net)
 
     scaler = torch.cuda.amp.GradScaler()
     epochs = []
 
-    if LOAD_MODEL is not True:  
+    if LOAD_MODEL is not True:
         results = {
             "train_loss": [],
             "train_acc": [],
@@ -181,7 +182,8 @@ def main():
             "test_f1": [],
             "test_auc": [],
             "test_entropy": [],
-            "test_variance": []
+            "test_variance": [],
+            "test_time": []
             
         }
 
@@ -199,7 +201,7 @@ def main():
             if LOAD_MODEL is not True:
                 model.train()
                 train_loss, train_acc = train_fn(train_loader, model, optimizer, loss_fn, scaler)
-            test_loss, test_acc, test_ece, test_ace, test_f1, test_auc, test_entropy, test_variance = test(architecture, val_loader, model, loss_fn, test_set, device=DEVICE)
+            test_loss, test_acc, test_ece, test_ace, test_f1, test_auc, test_entropy, test_variance, test_time = test(architecture, val_loader, model, loss_fn, test_set, device=DEVICE)
 
 
             if LOAD_MODEL is not True:
@@ -214,6 +216,8 @@ def main():
                 results["test_auc"].append(test_auc)
                 results["test_entropy"].append(test_entropy)
                 results["test_variance"].append(test_variance)
+
+                results["test_time"].append(test_time)
 
 
 
@@ -245,6 +249,10 @@ def main():
                 
                 writer.add_scalars( main_tag="Variance", 
                     tag_scalar_dict={"variance": test_variance}, 
+                    global_step=epoch)
+                
+                writer.add_scalars( main_tag="Inference Time", 
+                    tag_scalar_dict={"test_time": test_time}, 
                     global_step=epoch)
 
             # save model

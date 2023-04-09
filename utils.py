@@ -19,7 +19,7 @@ import numpy as np
 import os
 from datetime import datetime
 import dill
-import timeit
+from torch.profiler import profile, record_function, ProfilerActivity
 
 # import EgoHands_Dataset.get_segmentation_mask
 # import EgoHands_Dataset.get_frame_path
@@ -45,6 +45,9 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
 
     test_loss, test_acc, ece_list, f1_list, auc_list, ace_list, entropy_list, variance_list= 0, 0, 0, 0, 0, 0, 0, 0
 
+    # initializing timers
+    starter, ender = torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)
+    times = 0
 
     if test_set == "egohands":
         with torch.inference_mode():
@@ -52,7 +55,28 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
                     data = data.to(device=device)
                     targets = targets.float().unsqueeze(1).to(device=device)
                     targets = targets[:, :, :, :, 0]/255
+
+                    starter.record()
                     predictions = model(data)
+                    ender.record()
+
+                    torch.cuda.synchronize()
+
+                    # this is in milliseconds
+                    curr_time = starter.elapsed_time(ender)
+                    times+=curr_time
+                    
+                    # if device == "cuda":
+                    #     with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+                    #         with record_function("model_inference"):
+                    #             predictions = model(data)
+                    #     print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+                    # elif device == "cpu":
+                    #     with profile(activities=[ProfilerActivity.CPU], record_shapes=True) as prof:
+                    #         with record_function("model_inference"): 
+                    #             predictions = model(data)
+                    #     print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+
 
                     # shape here is [4, 1, 161, 161]
 
@@ -132,8 +156,9 @@ def test(architecture, loader, model, loss, test_set, device="cuda"):
     test_auc = auc_list/len(loader)
     test_entropy = entropy_list/len(loader)
     test_variance = variance_list/len(loader)
+    test_time = times/len(loader)
 
-    return test_loss, test_acc, test_ece, test_ace, test_f1, test_auc, test_entropy, test_variance
+    return test_loss, test_acc, test_ece, test_ace, test_f1, test_auc, test_entropy, test_variance, test_time
 
 def to_uint8(x):
     return (x * 255).int().to(torch.uint8)
